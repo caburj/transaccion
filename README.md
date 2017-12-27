@@ -12,4 +12,4 @@
 
 ## References
 
-1. Readme of [Create Elm App][https://github.com/halfzebra/create-elm-app/blob/master/template/README.md] 
+1. Readme of [Create Elm App](https://github.com/halfzebra/create-elm-app/blob/master/template/README.md)
