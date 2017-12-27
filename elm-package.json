@@ -1,7 +1,8 @@
 {
     "version": "1.0.0",
     "summary": "helpful summary of your project, less than 80 characters",
-    "repository": "https://github.com/user/project.git",
+    "repository": "https://github.com/caburj/transaccion.git",
+    "homepage" : "https://caburj.github.io/transaccion",
     "license": "BSD3",
     "source-directories": [
         "src"

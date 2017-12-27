@@ -36,7 +36,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ img [ src "/assets/logo.svg" ] []
+        [ img [ src "%PUBLIC_URL%/img/logo.svg" ] []
         , h1 [ class "subtitle is-1" ] [ text "Your Elm App is working!" ]
         , button [ class "button is-danger is-large is-outlined" ] [ text "large button" ]
         , div [] [ text "The above button is to test bulma css." ]

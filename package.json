@@ -11,7 +11,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "BSD3",
   "devDependencies": {
     "bulma": "^0.6.1"
   }
