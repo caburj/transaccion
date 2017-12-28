@@ -8,7 +8,7 @@
 1. `elm-app start` to start dev server
 1. edit `src` code
 1. `elm-app build` for production
-1. `sudo gh-pages -d build` to deploy to github.
+1. `gh-pages -d build` to deploy to github.
 
 ## References
 

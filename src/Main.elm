@@ -162,14 +162,10 @@ navbar : Html Msg
 navbar =
     nav [ class "navbar is-dark" ]
         [ div [ class "navbar-brand" ]
-            [ a [ class "navbar-item is-light", onClick (NewUrl "/") ]
+            [ a [ class "navbar-item", onClick (NewUrl "/") ]
                 [ h1 [ class "title is-light is-3" ] [ text "transaccion" ] ]
-            ]
-        , div [ class "navbar-menu" ]
-            [ div [ class "navbar-start" ]
-                [ a [ class "navbar-item", onClick (NewUrl "/app") ]
-                    [ h1 [ class "subtitle is-4 is-light" ] [ text "use app" ] ]
-                ]
+            , a [ class "navbar-item", onClick (NewUrl "/app") ]
+                [ h1 [ class "subtitle is-4 is-light" ] [ text "use app" ] ]
             ]
         ]
 
