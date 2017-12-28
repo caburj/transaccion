@@ -13,6 +13,8 @@
   "author": "",
   "license": "BSD3",
   "devDependencies": {
-    "bulma": "^0.6.1"
+    "bulma": "^0.6.1",
+    "remotestorage-widget": "^1.1.1",
+    "remotestoragejs": "^1.0.2"
   }
 }

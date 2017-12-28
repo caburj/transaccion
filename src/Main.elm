@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -7,12 +7,34 @@ import Navigation as Nav
 import UrlParser as Url exposing ((</>))
 
 
+---- PROGRAM ----
+
+
+main : Program (Maybe (List Book)) Model Msg
+main =
+    Nav.programWithFlags UrlChange
+        { view = view
+        , init = init
+        , update = update
+        , subscriptions = always Sub.none
+        }
+
+
+
+-- PORTS --
+
+
+port setStorage : List Book -> Cmd msg
+
+
+
 ---- MODEL ----
 
 
 type alias Model =
     { currentRoute : Route
     , books : List Book
+    , inputBookName : String
     }
 
 
@@ -38,9 +60,14 @@ type Route
     | PageNotFound
 
 
-init : Nav.Location -> ( Model, Cmd Msg )
-init loc =
-    ( Model Home initBooks, Cmd.none )
+init : Maybe (List Book) -> Nav.Location -> ( Model, Cmd Msg )
+init maybeBooks loc =
+    case maybeBooks of
+        Nothing ->
+            Model Home initBooks "" ! []
+
+        Just books ->
+            Model Home books "" ! []
 
 
 initBooks : List Book
@@ -64,6 +91,13 @@ route =
 type Msg
     = UrlChange Nav.Location
     | NewUrl String
+    | InputBookName String
+    | AddBook BookId String
+    | Delete BookId
+
+
+type alias BookId =
+    Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -84,6 +118,31 @@ update msg model =
             in
             { model | currentRoute = cRoute } ! []
 
+        InputBookName bookName ->
+            { model | inputBookName = bookName } ! []
+
+        AddBook id name ->
+            case name of
+                "" ->
+                    model ! []
+
+                _ ->
+                    let
+                        newBook =
+                            Book id name []
+
+                        newBooks =
+                            model.books ++ [ newBook ]
+                    in
+                    { model | books = newBooks } ! [ setStorage newBooks ]
+
+        Delete bookId ->
+            let
+                newBooks =
+                    List.filter (\book -> book.id /= bookId) model.books
+            in
+            { model | books = newBooks } ! [ setStorage newBooks ]
+
 
 
 ---- VIEW ----
@@ -93,7 +152,8 @@ view : Model -> Html Msg
 view model =
     div []
         [ navbar
-        , render model
+        , div [ class "app-content" ]
+            [ render model ]
         ]
 
 
@@ -106,7 +166,9 @@ navbar =
             ]
         , div [ class "navbar-menu" ]
             [ div [ class "navbar-start" ]
-                [ a [ class "navbar-item", onClick (NewUrl "/app") ] [ h1 [ class "subtitle is-4 is-light" ] [ text "use app" ] ] ]
+                [ a [ class "navbar-item", onClick (NewUrl "/app") ]
+                    [ h1 [ class "subtitle is-4 is-light" ] [ text "use app" ] ]
+                ]
             ]
         ]
 
@@ -119,7 +181,10 @@ render model =
                 [ h1 [ class "subtitle is-4" ] [ text "This is the home page." ] ]
 
         App ->
-            div [ class "columns" ] (List.map showBook model.books)
+            div [ class "columns is-multiline" ]
+                (List.map showBookCard model.books
+                    ++ [ addBookField model ]
+                )
 
         BookR id ->
             div [ class "block" ] [ text ("book " ++ toString id) ]
@@ -128,28 +193,30 @@ render model =
             div [] [ text "The page is not available." ]
 
 
-showBook : Book -> Html Msg
-showBook book =
-    div [ class "column is-3", onClick (NewUrl ("/app/" ++ toString book.id)) ]
+showBookCard : Book -> Html Msg
+showBookCard book =
+    div [ class "column is-3" ]
         [ article [ class "message" ]
             [ div [ class "message-header" ]
                 [ text ("book " ++ toString book.id)
-                , button [ class "delete" ] []
+                , button [ class "delete", onClick (Delete book.id) ] []
                 ]
-            , div [ class "message-body" ] [ text book.name ]
+            , div [ class "message-body", onClick (NewUrl ("/app/" ++ toString book.id)) ] [ text book.name ]
             ]
         ]
 
 
-
----- PROGRAM ----
-
-
-main : Program Never Model Msg
-main =
-    Nav.program UrlChange
-        { view = view
-        , init = init
-        , update = update
-        , subscriptions = always Sub.none
-        }
+addBookField : Model -> Html Msg
+addBookField model =
+    div [ class "column is-3" ]
+        [ div [ class "field has-addons" ]
+            [ p [ class "control" ]
+                [ input [ class "input", type_ "text", placeholder "name", onInput InputBookName ] [] ]
+            , p [ class "control" ]
+                [ button [ class "button is-dark", onClick (AddBook (List.length model.books) model.inputBookName) ]
+                    [ span [ class "icon" ]
+                        [ i [ class "fa fa-plus" ] [] ]
+                    ]
+                ]
+            ]
+        ]
