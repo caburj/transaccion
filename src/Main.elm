@@ -22,7 +22,7 @@ main =
 
 
 
--- PORTS --
+---- PORTS ----
 
 
 port setStorage : List Book -> Cmd msg
@@ -39,48 +39,74 @@ type alias Model =
     }
 
 
+type Route
+    = HomeR
+    | AppR
+    | BookR Id
+    | PageNotFoundR
+
+
 type alias Book =
-    { id : Int
+    { id : Id
     , name : String
+    , expenseCategories : List String
+    , earningCategories : List String
     , transactions : List Transaction
     }
 
 
 type alias Transaction =
-    { id : Int
+    { id : Id
     , price : Float
     , category : String
     , description : String
     }
 
 
-type Route
-    = Home
-    | App
-    | BookR Int
-    | PageNotFound
+type alias Id =
+    Int
+
+
+defaultExpenseCategories : List String
+defaultExpenseCategories =
+    [ "Uncategorized", "Food", "Rent", "Transpo", "Leisure", "Misc", "Subscription", "Medical", "Unexpected" ]
+
+
+defaultEarningCategories : List String
+defaultEarningCategories =
+    [ "Uncategorized", "Salary", "Bonus", "Gift", "Reimbursement", "Sideline", "Unexpected" ]
+
+
+defaultBook1 : Book
+defaultBook1 =
+    Book 0 "Personal" defaultExpenseCategories defaultEarningCategories []
+
+
+defaultBook2 : Book
+defaultBook2 =
+    Book 1 "Business" defaultExpenseCategories defaultEarningCategories []
 
 
 init : Maybe (List Book) -> Nav.Location -> ( Model, Cmd Msg )
 init maybeBooks loc =
     case maybeBooks of
         Nothing ->
-            Model Home initBooks "" ! []
+            Model HomeR initBooks "" ! []
 
         Just books ->
-            Model Home books "" ! []
+            Model HomeR books "" ! []
 
 
 initBooks : List Book
 initBooks =
-    [ Book 0 "Personal" [], Book 1 "Business" [] ]
+    [ defaultBook1, defaultBook2 ]
 
 
 route : Url.Parser (Route -> a) a
 route =
     Url.oneOf
-        [ Url.map Home Url.top
-        , Url.map App (Url.s "app")
+        [ Url.map HomeR Url.top
+        , Url.map AppR (Url.s "app")
         , Url.map BookR (Url.s "app" </> Url.int)
         ]
 
@@ -93,12 +119,11 @@ type Msg
     = UrlChange Nav.Location
     | NewUrl String
     | InputBookName String
-    | AddBook BookId String
-    | Delete BookId
-
-
-type alias BookId =
-    Int
+    | AddBook Id String
+    | DeleteBook Id
+    | DeleteExpenseCategory Id String
+    | DeleteEarningCategory Id String
+    | NoOp
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -112,7 +137,7 @@ update msg model =
                 cRoute =
                     case Url.parsePath route loc of
                         Nothing ->
-                            PageNotFound
+                            PageNotFoundR
 
                         Just r ->
                             r
@@ -130,19 +155,72 @@ update msg model =
                 _ ->
                     let
                         newBook =
-                            Book id name []
+                            Book id name defaultExpenseCategories defaultEarningCategories []
 
                         newBooks =
                             model.books ++ [ newBook ]
                     in
                     { model | books = newBooks } ! [ setStorage newBooks ]
 
-        Delete bookId ->
+        DeleteBook bookId ->
             let
                 newBooks =
                     List.filter (\book -> book.id /= bookId) model.books
             in
             { model | books = newBooks } ! [ setStorage newBooks ]
+
+        DeleteExpenseCategory bookId name ->
+            let
+                maybeBook =
+                    ListE.find (\b -> b.id == bookId) model.books
+
+                newBooks =
+                    case maybeBook of
+                        Nothing ->
+                            model.books
+
+                        Just book ->
+                            let
+                                newCategories =
+                                    List.filter (\n -> n /= name) book.expenseCategories
+
+                                newBook =
+                                    { book | expenseCategories = newCategories }
+
+                                unsortedNewBooks =
+                                    newBook :: List.filter (\b -> b.id /= bookId) model.books
+                            in
+                            List.sortBy .id unsortedNewBooks
+            in
+            { model | books = newBooks } ! [ setStorage newBooks ]
+
+        DeleteEarningCategory bookId name ->
+            let
+                maybeBook =
+                    ListE.find (\b -> b.id == bookId) model.books
+
+                newBooks =
+                    case maybeBook of
+                        Nothing ->
+                            model.books
+
+                        Just book ->
+                            let
+                                newCategories =
+                                    List.filter (\n -> n /= name) book.earningCategories
+
+                                newBook =
+                                    { book | earningCategories = newCategories }
+
+                                unsortedNewBooks =
+                                    newBook :: List.filter (\b -> b.id /= bookId) model.books
+                            in
+                            List.sortBy .id unsortedNewBooks
+            in
+            { model | books = newBooks } ! [ setStorage newBooks ]
+
+        NoOp ->
+            model ! []
 
 
 
@@ -173,14 +251,14 @@ navbar =
 render : Model -> Html Msg
 render model =
     case model.currentRoute of
-        Home ->
+        HomeR ->
             div [ class "block" ]
                 [ h1 [ class "subtitle is-4" ] [ text "This is the home page." ] ]
 
-        App ->
+        AppR ->
             div [ class "columns is-multiline" ]
-                (List.map showBookCard model.books
-                    ++ [ addBookField model ]
+                (List.map bookCard model.books
+                    ++ [ addBookForm model ]
                 )
 
         BookR id ->
@@ -192,32 +270,52 @@ render model =
                 Just book ->
                     div [ class "block" ]
                         [ h1 [ class "title is-3" ] [ text book.name ]
-                        , h1 [ class "subtitle is-4" ] [ text (toString id) ]
+                        , h1 [ class "subtitle is-6" ] [ text (toString id) ]
+                        , deletableTags "is-danger" (DeleteExpenseCategory book.id) book.expenseCategories
+                        , deletableTags "is-success" (DeleteEarningCategory book.id) book.earningCategories
                         ]
 
                 Nothing ->
                     div [ class "block" ]
                         [ text ("There is no book with that id: " ++ toString id) ]
 
-        PageNotFound ->
+        PageNotFoundR ->
             div [] [ text "The page is not available." ]
 
 
-showBookCard : Book -> Html Msg
-showBookCard book =
+deletableTags : String -> (String -> Msg) -> List String -> Html Msg
+deletableTags color xMessage names =
+    div [ class "field is-grouped is-grouped-multiline" ]
+        (names
+            |> List.map (xTag color xMessage)
+        )
+
+
+xTag : String -> (String -> Msg) -> String -> Html Msg
+xTag color xMessage name =
+    div [ class "control" ]
+        [ div [ class "tags has-addons" ]
+            [ span [ class ("tag " ++ color) ] [ text name ]
+            , a [ class "tag is-delete", onClick (xMessage name) ] []
+            ]
+        ]
+
+
+bookCard : Book -> Html Msg
+bookCard book =
     div [ class "column is-3" ]
         [ article [ class "message" ]
             [ div [ class "message-header" ]
                 [ text ("book " ++ toString book.id)
-                , button [ class "delete", onClick (Delete book.id) ] []
+                , button [ class "delete", onClick (DeleteBook book.id) ] []
                 ]
             , div [ class "message-body", onClick (NewUrl ("/app/" ++ toString book.id)) ] [ text book.name ]
             ]
         ]
 
 
-addBookField : Model -> Html Msg
-addBookField model =
+addBookForm : Model -> Html Msg
+addBookForm model =
     div [ class "column is-3" ]
         [ div [ class "field has-addons" ]
             [ p [ class "control" ]

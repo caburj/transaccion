@@ -7,7 +7,7 @@ import RemoteStorage from 'remotestoragejs';
 import Widget from 'remotestorage-widget';
 
 
-const folder = "/test-storage-003/";
+const folder = "/test-storage-004/";
 const remoteStorage = new RemoteStorage();
 remoteStorage.access.claim(folder.slice(1, folder.length - 1), 'rw');
 // remoteStorage.onChange(folder, event => {console.log("change event in remoteStorage: ", event)});
@@ -53,7 +53,7 @@ client.getObject('books')
     if (books) {
         storedBooks = books;
     } else {
-        storedBooks = [];
+        storedBooks = null;
     };
     // console.log("storedBooks from client = ", storedBooks)
     elmStart();
