@@ -3,6 +3,7 @@ port module Main exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import List.Extra as ListE
 import Navigation as Nav
 import UrlParser as Url exposing ((</>))
 
@@ -78,9 +79,9 @@ initBooks =
 route : Url.Parser (Route -> a) a
 route =
     Url.oneOf
-        [ Url.map Home Url.top
-        , Url.map App (Url.s "app")
-        , Url.map BookR (Url.s "app" </> Url.int)
+        [ Url.map Home (Url.s "transaccion")
+        , Url.map App (Url.s "transaccion" </> Url.s "app")
+        , Url.map BookR (Url.s "transaccion" </> Url.s "app" </> Url.int)
         ]
 
 
@@ -161,12 +162,12 @@ navbar : Html Msg
 navbar =
     nav [ class "navbar is-dark" ]
         [ div [ class "navbar-brand" ]
-            [ a [ class "navbar-item is-light", onClick (NewUrl "/") ]
+            [ a [ class "navbar-item is-light", onClick (NewUrl "/transaccion") ]
                 [ h1 [ class "title is-light is-3" ] [ text "transaccion" ] ]
             ]
         , div [ class "navbar-menu" ]
             [ div [ class "navbar-start" ]
-                [ a [ class "navbar-item", onClick (NewUrl "/app") ]
+                [ a [ class "navbar-item", onClick (NewUrl "/transaccion/app") ]
                     [ h1 [ class "subtitle is-4 is-light" ] [ text "use app" ] ]
                 ]
             ]
@@ -187,7 +188,20 @@ render model =
                 )
 
         BookR id ->
-            div [ class "block" ] [ text ("book " ++ toString id) ]
+            let
+                maybeBook =
+                    ListE.find (\book -> book.id == id) model.books
+            in
+            case maybeBook of
+                Just book ->
+                    div [ class "block" ]
+                        [ h1 [ class "title is-3" ] [ text book.name ]
+                        , h1 [ class "subtitle is-4" ] [ text (toString id) ]
+                        ]
+
+                Nothing ->
+                    div [ class "block" ]
+                        [ text ("There is no book with that id: " ++ toString id) ]
 
         PageNotFound ->
             div [] [ text "The page is not available." ]
@@ -201,7 +215,7 @@ showBookCard book =
                 [ text ("book " ++ toString book.id)
                 , button [ class "delete", onClick (Delete book.id) ] []
                 ]
-            , div [ class "message-body", onClick (NewUrl ("/app/" ++ toString book.id)) ] [ text book.name ]
+            , div [ class "message-body", onClick (NewUrl ("/transaccion/app/" ++ toString book.id)) ] [ text book.name ]
             ]
         ]
 
