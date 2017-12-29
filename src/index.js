@@ -1,4 +1,5 @@
 import 'bulma/css/bulma.css';
+import 'font-awesome/css/font-awesome.min.css';
 import './main.css';
 import { Main } from './Main.elm';
 import registerServiceWorker from './registerServiceWorker';
@@ -6,70 +7,188 @@ import registerServiceWorker from './registerServiceWorker';
 import RemoteStorage from 'remotestoragejs';
 import Widget from 'remotestorage-widget';
 
-
-const folder = "/test-storage-004/";
-const remoteStorage = new RemoteStorage();
-remoteStorage.access.claim(folder.slice(1, folder.length - 1), 'rw');
-// remoteStorage.onChange(folder, event => {console.log("change event in remoteStorage: ", event)});
-// remoteStorage.cache.enable(folder);
-const client = remoteStorage.scope(folder);
+// BOOKS MODULE //
 
 const bookType = {
   "type": "object",
   "properties": {
-    "id" : "int",
-    "name" : "string",
-    "transactions" : {
+    "id": { 
+      "type": "string" 
+    },
+    "name": { 
+      "type": "string" 
+    },
+    "expenseCategories": {
       "type": "array",
-      "items" : transactionType
+      "items": "string"
+    },
+    "earningCategories": {
+      "type": "array",
+      "items": "string"
+    },
+    "transactions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string" 
+          },
+          "price": {
+            "type": "number",
+            "format": "double"
+          },
+          "category": { 
+            "type": "string" 
+          },
+          "description": { 
+            "type": "string" 
+          }
+        }
+      }
     }
-}}
-
-const transactionType = {
-  "type": "object",
-  "properties": {
-    "price" : "float",
-    "category" : "string",
-    "description": "string"
   }
 }
 
-client.declareType('books', {
-  "type": "array",
-  "items": bookType
-})
+/////////////////
 
-const widget = new Widget(remoteStorage);
+let rs = new RemoteStorage();
+let storageFolder = "test-storage-016";
+rs.access.claim(storageFolder, 'rw');
+const booksClient = rs.scope(`/${storageFolder}/`);
+
+booksClient.declareType('bookType', bookType);
+booksClient.cache('');
+
+let widget = new Widget(rs);
 widget.attach("widget");
 
-let storedBooks = null;
-//
-// client.getListing('')
-//   .then(listing => {
-//     console.log(listing);
-//   })
-client.getObject('books')
-  .then(books => {
-    if (books) {
-        storedBooks = books;
-    } else {
-        storedBooks = null;
+// booksClient.getAll('')
+//   .then(arr => {
+//     let objBooks = {};
+//     if (arr.length > 0) {
+//       console.log("Something is stored! Printing them below.")
+//       for (let item in arr) {
+//         console.log(item);
+//         objBooks[item['id']] = item;
+//       };
+//       console.log("This is the final value of objBooks: ", objBooks);
+//     } else {
+//       console.log("sorry, there is nothing in your storage.");
+//       for (let key in defaultBooks) {
+//         booksClient.storeObject('bookType', key, defaultBooks[key]);
+//       }
+//       objBooks = defaultBooks;
+//     };
+//     startElm(JSON.stringify(objBooks));
+//   });
+
+let listing = [];
+let savedBooks = {};
+
+booksClient.getListing('')
+  .then(listing => {
+    let booksPromises = [];
+    for (let item in listing) {
+      console.log(item);
+      booksPromises.push(booksClient.getObject(item)
+        .then(obj => [obj.id, obj]));
     };
-    // console.log("storedBooks from client = ", storedBooks)
-    elmStart();
+    Promise.all(booksPromises).then(books => {
+      let startingBooks = {};
+
+      if (books.length > 0) {
+        let storedBooks = {}
+        for (let i in books) {
+
+          let pair = books[i];
+          let id = pair[0];
+          let obj = pair[1];
+          storedBooks[id] = obj;
+        };
+        startingBooks = JSON.stringify(storedBooks);
+      } else {
+        for (let key in defaultBooks) {
+          booksClient.storeObject('bookType', key, defaultBooks[key]);
+        };
+        startingBooks = JSON.stringify(defaultBooks);
+      };
+      // let startingBooks = JSON.stringify(defaultBooks);
+      startElm(startingBooks);
+    })
   });
 
-let elmStart = (function() {
-  // widget.close();
-  // console.log("storedBooks used by elm = ", storedBooks);
-  const elm = Main.embed(document.getElementById('root'), storedBooks);
+let startElm = (function(startingBooks) {
 
-  elm.ports.setStorage.subscribe(books => {
-    // console.log(books);
-    client.storeObject('books', 'books', books)
-      .then("Books saved successfully")
-      .catch(err => console.log(err));
+  const elm = Main.embed(document.getElementById('root'), startingBooks);
+
+  elm.ports.setStorage.subscribe(strBooks => {
+    let objBooks = JSON.parse(strBooks);
+    console.log(strBooks);
+    for (let key in objBooks) {
+      console.log(objBooks[key]);
+      booksClient.storeObject('bookType', key, objBooks[key])
+        .then(() => {console.log("saved successfully.")});
+    };
   });
+
+  elm.ports.saveBook.subscribe(strBook => {
+
+  })
+
+  // rs.on('connected', function () {
+  //   console.log("You are connected.");
+  // });
+
+  booksClient.on('change', function(event) {
+    console.log(event);
+  });
+
+  // rs.on('disconnected', function () {
+  //   console.log("rs is disconnected.");
+  // });
 
   registerServiceWorker();
 })
+
+/// constants
+
+const transaction00 = {
+  "id" : "00",
+  "price" : 13.4,
+  "category" : "Food",
+  "description" : "quality food"
+}
+
+const transaction01 = {
+  "id": "01",
+  "price": 1.4,
+  "category": "Misc",
+  "description": "toothpaste"
+}
+
+const defaultTransactions = {
+  "00" : transaction00,
+  "01" : transaction01
+}
+
+const book00 = {
+  "id" : "00",
+  "name" : "Personal",
+  "expenseCategories": ["Uncategorized", "Food", "Rent", "Transpo", "Leisure", "Misc", "Subscription", "Medical", "Unexpected"],
+  "earningCategories": ["Uncategorized", "Salary", "Bonus", "Gift", "Reimbursement", "Sideline", "Unexpected"],
+  "transactions" : defaultTransactions
+}
+
+const book01 = {
+  "id": "01",
+  "name": "Business",
+  "expenseCategories": ["Uncategorized", "Food", "Rent", "Transpo", "Leisure", "Misc", "Subscription", "Medical", "Unexpected"],
+  "earningCategories": ["Uncategorized", "Salary", "Bonus", "Gift", "Reimbursement", "Sideline", "Unexpected"],
+  "transactions": defaultTransactions
+}
+
+const defaultBooks = {
+  "00" : book00,
+  "01" : book01
+}

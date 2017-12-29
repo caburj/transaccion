@@ -1,9 +1,16 @@
 port module Main exposing (..)
 
+-- elm-package install --yes elm-community/json-extra
+-- import List.Extra
+
+import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import List.Extra as ListE
+import Json.Decode exposing (decodeString)
+import Json.Encode exposing (encode)
+import Json_ exposing (decodeBooks, encodeBook, encodeBooks)
+import Model exposing (..)
 import Navigation as Nav
 import UrlParser as Url exposing ((</>))
 
@@ -11,7 +18,7 @@ import UrlParser as Url exposing ((</>))
 ---- PROGRAM ----
 
 
-main : Program (Maybe (List Book)) Model Msg
+main : Program (Maybe String) Model Msg
 main =
     Nav.programWithFlags UrlChange
         { view = view
@@ -25,46 +32,14 @@ main =
 ---- PORTS ----
 
 
-port setStorage : List Book -> Cmd msg
+port setStorage : String -> Cmd msg
+
+
+port saveBook : String -> Cmd msg
 
 
 
----- MODEL ----
-
-
-type alias Model =
-    { currentRoute : Route
-    , books : List Book
-    , inputBookName : String
-    }
-
-
-type Route
-    = HomeR
-    | AppR
-    | BookR Id
-    | PageNotFoundR
-
-
-type alias Book =
-    { id : Id
-    , name : String
-    , expenseCategories : List String
-    , earningCategories : List String
-    , transactions : List Transaction
-    }
-
-
-type alias Transaction =
-    { id : Id
-    , price : Float
-    , category : String
-    , description : String
-    }
-
-
-type alias Id =
-    Int
+---- MODEL INIT ----
 
 
 defaultExpenseCategories : List String
@@ -79,27 +54,51 @@ defaultEarningCategories =
 
 defaultBook1 : Book
 defaultBook1 =
-    Book 0 "Personal" defaultExpenseCategories defaultEarningCategories []
+    Book "b0" "Personal" defaultExpenseCategories defaultEarningCategories defaultTransactions
 
 
 defaultBook2 : Book
 defaultBook2 =
-    Book 1 "Business" defaultExpenseCategories defaultEarningCategories []
+    Book "b1" "Business" defaultExpenseCategories defaultEarningCategories defaultTransactions
 
 
-init : Maybe (List Book) -> Nav.Location -> ( Model, Cmd Msg )
+defaultTransactions : Dict Id Transaction
+defaultTransactions =
+    let
+        transaction01 =
+            Transaction "t0" 12.5 "Food" ""
+
+        transaction02 =
+            Transaction "t1" 4.0 "Leisure" "ice-cream"
+    in
+    Dict.fromList [ ( "t0", transaction01 ), ( "t1", transaction02 ) ]
+
+
+init : Maybe String -> Nav.Location -> ( Model, Cmd Msg )
 init maybeBooks loc =
     case maybeBooks of
         Nothing ->
-            Model HomeR initBooks "" ! []
+            Model HomeR initBooks "" "" "" Nothing ! []
 
         Just books ->
-            Model HomeR books "" ! []
+            let
+                resultBooks =
+                    decodeString decodeBooks books
+
+                books_ =
+                    case resultBooks of
+                        Ok books__ ->
+                            books__
+
+                        Err _ ->
+                            initBooks
+            in
+            Model HomeR books_ "" "" "" Nothing ! []
 
 
-initBooks : List Book
+initBooks : Dict String Book
 initBooks =
-    [ defaultBook1, defaultBook2 ]
+    Dict.fromList [ ( "b0", defaultBook1 ), ( "b1", defaultBook2 ) ]
 
 
 route : Url.Parser (Route -> a) a
@@ -107,7 +106,7 @@ route =
     Url.oneOf
         [ Url.map HomeR Url.top
         , Url.map AppR (Url.s "app")
-        , Url.map BookR (Url.s "app" </> Url.int)
+        , Url.map BookR (Url.s "app" </> Url.string)
         ]
 
 
@@ -123,6 +122,8 @@ type Msg
     | DeleteBook Id
     | DeleteExpenseCategory Id String
     | DeleteEarningCategory Id String
+    | InputCategory Book TransactionCategory String
+    | AddCategory Book TransactionCategory
     | NoOp
 
 
@@ -155,72 +156,69 @@ update msg model =
                 _ ->
                     let
                         newBook =
-                            Book id name defaultExpenseCategories defaultEarningCategories []
+                            Book id name defaultExpenseCategories defaultEarningCategories Dict.empty
 
                         newBooks =
-                            model.books ++ [ newBook ]
+                            Dict.insert id newBook model.books
                     in
-                    { model | books = newBooks } ! [ setStorage newBooks ]
+                    { model | books = newBooks } ! [ setStorage (encode 2 (encodeBooks newBooks)) ]
 
         DeleteBook bookId ->
             let
                 newBooks =
-                    List.filter (\book -> book.id /= bookId) model.books
+                    Dict.remove bookId model.books
             in
-            { model | books = newBooks } ! [ setStorage newBooks ]
+            { model | books = newBooks } ! [ setStorage (encode 2 (encodeBooks newBooks)) ]
 
         DeleteExpenseCategory bookId name ->
             let
-                maybeBook =
-                    ListE.find (\b -> b.id == bookId) model.books
-
                 newBooks =
-                    case maybeBook of
-                        Nothing ->
-                            model.books
-
-                        Just book ->
-                            let
-                                newCategories =
-                                    List.filter (\n -> n /= name) book.expenseCategories
-
-                                newBook =
-                                    { book | expenseCategories = newCategories }
-
-                                unsortedNewBooks =
-                                    newBook :: List.filter (\b -> b.id /= bookId) model.books
-                            in
-                            List.sortBy .id unsortedNewBooks
+                    Dict.update bookId (deleteCategory Expense name) model.books
             in
-            { model | books = newBooks } ! [ setStorage newBooks ]
+            { model | books = newBooks } ! [ setStorage (encode 2 (encodeBooks newBooks)) ]
 
         DeleteEarningCategory bookId name ->
             let
-                maybeBook =
-                    ListE.find (\b -> b.id == bookId) model.books
-
                 newBooks =
-                    case maybeBook of
-                        Nothing ->
-                            model.books
-
-                        Just book ->
-                            let
-                                newCategories =
-                                    List.filter (\n -> n /= name) book.earningCategories
-
-                                newBook =
-                                    { book | earningCategories = newCategories }
-
-                                unsortedNewBooks =
-                                    newBook :: List.filter (\b -> b.id /= bookId) model.books
-                            in
-                            List.sortBy .id unsortedNewBooks
+                    Dict.update bookId (deleteCategory Earning name) model.books
             in
-            { model | books = newBooks } ! [ setStorage newBooks ]
+            { model | books = newBooks } ! [ setStorage (encode 2 (encodeBooks newBooks)) ]
+
+        InputCategory book category name ->
+            model ! []
+
+        AddCategory category book ->
+            model ! []
 
         NoOp ->
             model ! []
+
+
+
+---- UTILITY FUNCTIONS ----
+
+
+deleteCategory : TransactionCategory -> String -> Maybe Book -> Maybe Book
+deleteCategory category name maybeBook =
+    case maybeBook of
+        Nothing ->
+            Nothing
+
+        Just book ->
+            case category of
+                Expense ->
+                    let
+                        newCategories =
+                            List.filter (\n -> n /= name) book.expenseCategories
+                    in
+                    Just { book | expenseCategories = newCategories }
+
+                Earning ->
+                    let
+                        newCategories =
+                            List.filter (\n -> n /= name) book.earningCategories
+                    in
+                    Just { book | earningCategories = newCategories }
 
 
 
@@ -257,22 +255,28 @@ render model =
 
         AppR ->
             div [ class "columns is-multiline" ]
-                (List.map bookCard model.books
+                (List.map bookCard (Dict.values model.books)
                     ++ [ addBookForm model ]
                 )
 
         BookR id ->
             let
                 maybeBook =
-                    ListE.find (\book -> book.id == id) model.books
+                    Dict.get id model.books
             in
             case maybeBook of
                 Just book ->
                     div [ class "block" ]
-                        [ h1 [ class "title is-3" ] [ text book.name ]
-                        , h1 [ class "subtitle is-6" ] [ text (toString id) ]
-                        , deletableTags "is-danger" (DeleteExpenseCategory book.id) book.expenseCategories
-                        , deletableTags "is-success" (DeleteEarningCategory book.id) book.earningCategories
+                        [ div [ class "columns" ]
+                            [ div [ class "column is-two-thirds" ]
+                                [ h1 [ class "title is-3" ] [ text book.name ]
+                                , h1 [ class "subtitle is-6" ] [ text ("/book" ++ toString id ++ "/") ]
+                                ]
+                            , div [ class "column is-one-third" ]
+                                [ categoriesBox book Expense DeleteExpenseCategory
+                                , categoriesBox book Earning DeleteEarningCategory
+                                ]
+                            ]
                         ]
 
                 Nothing ->
@@ -301,6 +305,46 @@ xTag color xMessage name =
         ]
 
 
+categoriesBox : Book -> TransactionCategory -> (Id -> String -> Msg) -> Html Msg
+categoriesBox book category msg =
+    let
+        ( color, categories, name ) =
+            if category == Expense then
+                ( "is-danger", book.expenseCategories, "Expense Categories" )
+            else
+                ( "is-success", book.earningCategories, "Earning Categories" )
+    in
+    div [ class "box" ]
+        [ article [ class "media" ]
+            [ div [ class "media-content" ]
+                [ div
+                    [ class "content" ]
+                    [ div [ class "columns" ]
+                        [ div [ class "column is-two-thirds" ] [ p [ class "subtitle is-5" ] [ text name ] ]
+                        , div [ class "column" ] [ addCategoryForm book category ]
+                        ]
+                    , hr [] []
+                    , deletableTags color (msg book.id) categories
+                    ]
+                ]
+            ]
+        ]
+
+
+addCategoryForm : Book -> TransactionCategory -> Html Msg
+addCategoryForm book category =
+    span [ style [ ( "font-size", "1rem" ), ( "font-weight", "normal" ) ] ]
+        [ div [ class "field has-addons" ]
+            [ div [ class "control" ]
+                [ input [ class "input is-small", type_ "text", onInput (InputCategory book category) ] [] ]
+            , div [ class "control" ]
+                [ button [ class "button is-small is-primary", onClick (AddCategory book category) ]
+                    [ span [ class "icon" ] [ i [ class "fa fa-plus" ] [] ] ]
+                ]
+            ]
+        ]
+
+
 bookCard : Book -> Html Msg
 bookCard book =
     div [ class "column is-3" ]
@@ -309,7 +353,7 @@ bookCard book =
                 [ text ("book " ++ toString book.id)
                 , button [ class "delete", onClick (DeleteBook book.id) ] []
                 ]
-            , div [ class "message-body", onClick (NewUrl ("/app/" ++ toString book.id)) ] [ text book.name ]
+            , div [ class "message-body", onClick (NewUrl ("/app/" ++ book.id)) ] [ text book.name ]
             ]
         ]
 
@@ -321,7 +365,7 @@ addBookForm model =
             [ p [ class "control" ]
                 [ input [ class "input", type_ "text", placeholder "name", onInput InputBookName ] [] ]
             , p [ class "control" ]
-                [ button [ class "button is-dark", onClick (AddBook (List.length model.books) model.inputBookName) ]
+                [ button [ class "button is-dark", onClick (AddBook (toString (Dict.size model.books)) model.inputBookName) ]
                     [ span [ class "icon" ]
                         [ i [ class "fa fa-plus" ] [] ]
                     ]
