@@ -1,6 +1,7 @@
 module Model exposing (..)
 
 import Dict exposing (Dict)
+import Time exposing (Time)
 
 
 type alias Model =
@@ -10,6 +11,7 @@ type alias Model =
     , inputExpenseCategory : String
     , inputEarningCategory : String
     , currentBook : Maybe Book
+    , currentTime : Time
     }
 
 
@@ -26,6 +28,8 @@ type alias Book =
     , expenseCategories : List String
     , earningCategories : List String
     , transactions : Dict Id Transaction
+    , created : Time
+    , lastEdited : Time
     }
 
 
@@ -34,6 +38,8 @@ type alias Transaction =
     , price : Float
     , category : String
     , description : String
+    , created : Time
+    , lastEdited : Time
     }
 
 

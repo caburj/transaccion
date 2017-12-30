@@ -17,6 +17,8 @@ decodeTransaction =
         |> Pipeline.required "price" Decode.float
         |> Pipeline.required "category" Decode.string
         |> Pipeline.required "description" Decode.string
+        |> Pipeline.required "created" Decode.float
+        |> Pipeline.required "lastEdited" Decode.float
 
 
 encodeTransaction : Transaction -> Encode.Value
@@ -26,6 +28,8 @@ encodeTransaction record =
         , ( "price", Encode.float <| record.price )
         , ( "category", Encode.string <| record.category )
         , ( "description", Encode.string <| record.description )
+        , ( "created", Encode.float <| record.created )
+        , ( "lastEdited", Encode.float <| record.lastEdited )
         ]
 
 
@@ -37,6 +41,8 @@ decodeBook =
         |> Pipeline.required "expenseCategories" (Decode.list Decode.string)
         |> Pipeline.required "earningCategories" (Decode.list Decode.string)
         |> Pipeline.required "transactions" (Decode.dict decodeTransaction)
+        |> Pipeline.required "created" Decode.float
+        |> Pipeline.required "lastEdited" Decode.float
 
 
 encodeBook : Book -> Encode.Value
@@ -47,6 +53,8 @@ encodeBook record =
         , ( "expenseCategories", Encode.list <| List.map Encode.string <| record.expenseCategories )
         , ( "earningCategories", Encode.list <| List.map Encode.string <| record.earningCategories )
         , ( "transactions", EncodeExtra.dict identity encodeTransaction record.transactions )
+        , ( "created", Encode.float <| record.created )
+        , ( "lastEdited", Encode.float <| record.lastEdited )
         ]
 
 

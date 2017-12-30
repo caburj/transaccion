@@ -36,9 +36,26 @@ export default function (folder) {
                                 },
                                 "description": {
                                     "type": "string"
+                                },
+                                "created": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "lastEdited": {
+                                    "type": "number",
+                                    "format": "double"
                                 }
+                                
                             }
                         }
+                    },
+                    "created": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "lastEdited": {
+                        "type": "number",
+                        "format": "double"
                     }
                 }
             });

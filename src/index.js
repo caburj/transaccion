@@ -8,10 +8,10 @@ import './css/main.css';
 
 import registerServiceWorker from './js/registerServiceWorker';
 import booksModule from './js/rs-books-module'; 
-import defaultBooks from './js/default-books';
+// import defaultBooks from './js/default-books';
 
 
-let booksStorage = "books001";
+let booksStorage = "books002";
 let rs = new RemoteStorage({
   modules: [booksModule(booksStorage)]
 });

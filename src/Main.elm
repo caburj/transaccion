@@ -4,6 +4,7 @@ port module Main exposing (..)
 -- import List.Extra
 
 import Dict exposing (Dict)
+import Hashids exposing (hashidsMinimum)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -12,6 +13,8 @@ import Json.Encode exposing (encode)
 import Json_ exposing (decodeBooks, encodeBook, encodeBooks)
 import Model exposing (..)
 import Navigation as Nav
+import Task
+import Time exposing (Time)
 import UrlParser as Url exposing ((</>))
 
 
@@ -57,14 +60,14 @@ defaultEarningCategories =
 
 dummyBook : Id -> Book
 dummyBook id =
-    Book ("dummy" ++ id) ("dummy" ++ id) [] [] Dict.empty
+    Book ("dummy" ++ id) ("dummy" ++ id) [] [] Dict.empty 0.0 0.0
 
 
 init : Maybe String -> Nav.Location -> ( Model, Cmd Msg )
 init maybeBooks loc =
     case maybeBooks of
         Nothing ->
-            Model HomeR initBooks "" "" "" Nothing ! []
+            Model HomeR initBooks "" "" "" Nothing 0 ! [ getTimeNow ]
 
         Just strBook ->
             let
@@ -79,7 +82,7 @@ init maybeBooks loc =
                         Err _ ->
                             initBooks
             in
-            Model HomeR books "" "" "" Nothing ! []
+            Model HomeR books "" "" "" Nothing 0 ! [ getTimeNow ]
 
 
 initBooks : Dict String Book
@@ -102,20 +105,29 @@ route =
 
 type Msg
     = UrlChange Nav.Location
+    | TimeNow Time
     | NewUrl String
+    | SelectBook Id
     | InputBookName String
-    | AddBook Id String
+    | AddBook String
     | DeleteBook Id
     | DeleteExpenseCategory Id String
     | DeleteEarningCategory Id String
-    | InputCategory Book TransactionCategory String
-    | AddCategory Book TransactionCategory
+    | InputCategory TransactionCategory String
+    | AddCategory TransactionCategory
     | NoOp
+    | ClearBookInputs
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        TimeNow time ->
+            { model | currentTime = time } ! []
+
+        ClearBookInputs ->
+            { model | inputExpenseCategory = "", inputEarningCategory = "" } ! []
+
         NewUrl url ->
             model ! [ Nav.newUrl url ]
 
@@ -129,25 +141,40 @@ update msg model =
                         Just r ->
                             r
             in
-            { model | currentRoute = cRoute } ! []
+            update ClearBookInputs { model | currentRoute = cRoute }
+
+        SelectBook bookId ->
+            { model | currentBook = Dict.get bookId model.books } ! []
 
         InputBookName bookName ->
             { model | inputBookName = bookName } ! []
 
-        AddBook id name ->
+        AddBook name ->
+            let
+                ( newModel, cmds ) =
+                    model ! [ getTimeNow ]
+            in
             case name of
                 "" ->
-                    model ! []
+                    newModel ! []
 
                 _ ->
                     let
+                        time =
+                            newModel.currentTime
+
+                        id =
+                            time
+                                |> floor
+                                |> Hashids.encode salt
+
                         newBook =
-                            Book id name defaultExpenseCategories defaultEarningCategories Dict.empty
+                            Book id name defaultExpenseCategories defaultEarningCategories Dict.empty time time
 
                         newBooks =
-                            Dict.insert id newBook model.books
+                            Dict.insert id newBook newModel.books
                     in
-                    { model | books = newBooks } ! [ saveBook (encode 2 (encodeBook newBook)) ]
+                    { newModel | books = newBooks } ! [ saveBook (encode 2 (encodeBook newBook)), cmds ]
 
         DeleteBook bookId ->
             let
@@ -158,31 +185,103 @@ update msg model =
 
         DeleteExpenseCategory bookId name ->
             let
+                ( newModel, cmds ) =
+                    model ! [ getTimeNow ]
+
+                time =
+                    newModel.currentTime
+            in
+            let
                 newBooks =
-                    Dict.update bookId (deleteCategory Expense name) model.books
+                    Dict.update bookId (deleteCategory Expense name time) newModel.books
 
                 editedBook =
-                    Maybe.withDefault (dummyBook (toString <| Dict.size model.books)) (Dict.get bookId newBooks)
+                    Maybe.withDefault (dummyBook (toString <| Dict.size newModel.books)) (Dict.get bookId newBooks)
             in
-            { model | books = newBooks } ! [ saveBook (encode 2 (encodeBook editedBook)) ]
+            { newModel | books = newBooks, currentBook = Just editedBook } ! [ saveBook (encode 2 (encodeBook editedBook)), cmds ]
 
         DeleteEarningCategory bookId name ->
             let
+                ( newModel, cmds ) =
+                    model ! [ getTimeNow ]
+
+                time =
+                    newModel.currentTime
+            in
+            let
                 newBooks =
-                    Dict.update bookId (deleteCategory Earning name) model.books
+                    Dict.update bookId (deleteCategory Earning name time) newModel.books
 
                 editedBook =
-                    Maybe.withDefault (dummyBook (toString <| Dict.size model.books)) (Dict.get bookId newBooks)
+                    Maybe.withDefault (dummyBook (toString <| Dict.size newModel.books)) (Dict.get bookId newBooks)
             in
-            { model | books = newBooks } ! [ saveBook (encode 2 (encodeBook editedBook)) ]
+            { newModel | books = newBooks, currentBook = Just editedBook } ! [ saveBook (encode 2 (encodeBook editedBook)), cmds ]
 
-        InputCategory book category name ->
-            model ! []
+        InputCategory category name ->
+            case category of
+                Expense ->
+                    { model | inputExpenseCategory = name } ! []
 
-        AddCategory category book ->
-            model ! []
+                Earning ->
+                    { model | inputEarningCategory = name } ! []
 
-        NoOp ->
+        AddCategory category ->
+            let
+                ( newModel, cmds ) =
+                    model ! [ getTimeNow ]
+
+                time =
+                    newModel.currentTime
+            in
+            case newModel.currentBook of
+                Nothing ->
+                    newModel ! [ cmds ]
+
+                Just book ->
+                    case category of
+                        Expense ->
+                            if List.member newModel.inputExpenseCategory book.expenseCategories then
+                                newModel ! [ cmds ]
+                            else
+                                let
+                                    newBook =
+                                        { book
+                                            | expenseCategories = newModel.inputExpenseCategory :: book.expenseCategories
+                                            , lastEdited = time
+                                        }
+
+                                    newBooks =
+                                        replace newBook.id newBook newModel.books
+                                in
+                                { newModel
+                                    | books = newBooks
+                                    , inputExpenseCategory = ""
+                                    , currentBook = Just newBook
+                                }
+                                    ! [ saveBook (encode 2 (encodeBook newBook)), cmds ]
+
+                        Earning ->
+                            if List.member newModel.inputEarningCategory book.earningCategories then
+                                newModel ! [ cmds ]
+                            else
+                                let
+                                    newBook =
+                                        { book
+                                            | earningCategories = newModel.inputEarningCategory :: book.earningCategories
+                                            , lastEdited = time
+                                        }
+
+                                    newBooks =
+                                        replace newBook.id newBook newModel.books
+                                in
+                                { newModel
+                                    | books = newBooks
+                                    , inputEarningCategory = ""
+                                    , currentBook = Just newBook
+                                }
+                                    ! [ saveBook (encode 2 (encodeBook newBook)), cmds ]
+
+        _ ->
             model ! []
 
 
@@ -190,8 +289,8 @@ update msg model =
 ---- UTILITY FUNCTIONS ----
 
 
-deleteCategory : TransactionCategory -> String -> Maybe Book -> Maybe Book
-deleteCategory category name maybeBook =
+deleteCategory : TransactionCategory -> String -> Time -> Maybe Book -> Maybe Book
+deleteCategory category name time maybeBook =
     case maybeBook of
         Nothing ->
             Nothing
@@ -203,14 +302,30 @@ deleteCategory category name maybeBook =
                         newCategories =
                             List.filter (\n -> n /= name) book.expenseCategories
                     in
-                    Just { book | expenseCategories = newCategories }
+                    Just { book | expenseCategories = newCategories, lastEdited = time }
 
                 Earning ->
                     let
                         newCategories =
                             List.filter (\n -> n /= name) book.earningCategories
                     in
-                    Just { book | earningCategories = newCategories }
+                    Just { book | earningCategories = newCategories, lastEdited = time }
+
+
+getTimeNow : Cmd Msg
+getTimeNow =
+    Time.now
+        |> Task.perform TimeNow
+
+
+salt : Hashids.Context
+salt =
+    hashidsMinimum "ako ay may lobo" 5
+
+
+replace : comparable -> v -> Dict comparable v -> Dict comparable v
+replace key newValue dict =
+    Dict.remove key dict |> Dict.insert key newValue
 
 
 
@@ -223,6 +338,23 @@ view model =
         [ navbar
         , div [ class "app-content" ]
             [ render model ]
+
+        -- LOG MODEL --
+        , div []
+            ([ let
+                val =
+                    model.currentTime
+               in
+               text (toString val)
+             ]
+                ++ [ div [] [] ]
+                ++ [ let
+                        book =
+                            Maybe.withDefault (dummyBook "") model.currentBook
+                     in
+                     text book.id
+                   ]
+            )
         ]
 
 
@@ -247,7 +379,7 @@ render model =
 
         AppR ->
             div [ class "columns is-multiline" ]
-                (List.map bookCard (Dict.values model.books)
+                (List.map bookCard (List.reverse <| List.sortBy .lastEdited (Dict.values model.books))
                     ++ [ addBookForm model ]
                 )
 
@@ -279,11 +411,13 @@ render model =
             div [] [ text "The page is not available." ]
 
 
-deletableTags : String -> (String -> Msg) -> List String -> Html Msg
-deletableTags color xMessage names =
+deletableTags : String -> (String -> Msg) -> List String -> List (Html Msg) -> Html Msg
+deletableTags color xMessage names addons =
     div [ class "field is-grouped is-grouped-multiline" ]
-        (names
+        ((names
             |> List.map (xTag color xMessage)
+         )
+            ++ addons
         )
 
 
@@ -312,11 +446,12 @@ categoriesBox book category msg =
                 [ div
                     [ class "content" ]
                     [ div [ class "columns" ]
-                        [ div [ class "column is-two-thirds" ] [ p [ class "subtitle is-5" ] [ text name ] ]
-                        , div [ class "column" ] [ addCategoryForm book category ]
+                        [ div [ class "column is-two-thirds" ]
+                            [ p [ class "subtitle is-5" ] [ text name ] ]
                         ]
-                    , hr [] []
-                    , deletableTags color (msg book.id) categories
+
+                    -- , hr [] []
+                    , deletableTags color (msg book.id) categories [ addCategoryForm book category ]
                     ]
                 ]
             ]
@@ -325,12 +460,19 @@ categoriesBox book category msg =
 
 addCategoryForm : Book -> TransactionCategory -> Html Msg
 addCategoryForm book category =
-    span [ style [ ( "font-size", "1rem" ), ( "font-weight", "normal" ) ] ]
+    span [ style [ ( "font-size", "1rem" ), ( "font-weight", "normal" ), ( "width", "100px" ) ] ]
         [ div [ class "field has-addons" ]
             [ div [ class "control" ]
-                [ input [ class "input is-small", type_ "text", onInput (InputCategory book category) ] [] ]
+                [ input
+                    [ class "input is-small"
+                    , type_ "text"
+                    , placeholder "new"
+                    , onInput (InputCategory category)
+                    ]
+                    []
+                ]
             , div [ class "control" ]
-                [ button [ class "button is-small is-primary", onClick (AddCategory book category) ]
+                [ button [ class "button is-small is-primary", onClick (AddCategory category) ]
                     [ span [ class "icon" ] [ i [ class "fa fa-plus" ] [] ] ]
                 ]
             ]
@@ -345,7 +487,8 @@ bookCard book =
                 [ text ("book " ++ toString book.id)
                 , button [ class "delete", onClick (DeleteBook book.id) ] []
                 ]
-            , div [ class "message-body", onClick (NewUrl ("/app/" ++ book.id)) ] [ text book.name ]
+            , div [ onClick (SelectBook book.id) ]
+                [ div [ class "message-body", onClick (NewUrl ("/app/" ++ book.id)) ] [ text book.name ] ]
             ]
         ]
 
@@ -357,7 +500,7 @@ addBookForm model =
             [ p [ class "control" ]
                 [ input [ class "input", type_ "text", placeholder "name", onInput InputBookName ] [] ]
             , p [ class "control" ]
-                [ button [ class "button is-dark", onClick (AddBook (toString (Dict.size model.books)) model.inputBookName) ]
+                [ button [ class "button is-dark", onClick (AddBook model.inputBookName) ]
                     [ span [ class "icon" ]
                         [ i [ class "fa fa-plus" ] [] ]
                     ]
