@@ -8,8 +8,6 @@ import './css/main.css';
 
 import registerServiceWorker from './js/registerServiceWorker';
 import booksModule from './js/rs-books-module'; 
-// import defaultBooks from './js/default-books';
-
 
 let booksStorage = "books002";
 let rs = new RemoteStorage({
@@ -29,35 +27,39 @@ let startElm = (function(startingBooks) {
   });
 
   elm.ports.deleteBook.subscribe(bookId => {
-    console.log("deleteBook called with: ", bookId);
-    rs[booksStorage].remove(bookId);
+    rs[booksStorage].remove(bookId)
+      .then(() => {
+        console.log(`book ${bookId} deleted.`);
+      });
   })
 
   elm.ports.saveBook.subscribe(strBook => {
-    console.log("saveBook called with: ", strBook);
-    rs[booksStorage].add(JSON.parse(strBook));
+    let objBook = JSON.parse(strBook);
+    rs[booksStorage].add(objBook)
+      .then(() => {
+        console.log(`book ${objBook.id} saved.`)
+      });
   })
 
   rs[booksStorage].on('change', function (event) {
     if (event.newValue && (!event.oldValue)) {
-      console.log('Change from ' + event.origin + ' (add)', event);
+      // console.log('Change from ' + event.origin + ' (add)', event);
     }
     else if ((!event.newValue) && event.oldValue) {
-      console.log('Change from ' + event.origin + ' (remove)', event);
+      // console.log('Change from ' + event.origin + ' (remove)', event);
     }
     else if (event.newValue && event.oldValue) {
-      console.log('Change from ' + event.origin + ' (change)', event);
+      // console.log('Change from ' + event.origin + ' (change)', event);
     }
   });
 
   rs.on('disconnected', function () {
-    console.log("Disconnected.");
+    console.log("Disconnected. Reloading page...");
     location.reload();
   });
 
   registerServiceWorker();
 })
-
 
 rs.on('ready', function () {
   console.log("rs ready.")
