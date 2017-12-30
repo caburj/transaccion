@@ -246,7 +246,7 @@ update msg model =
                                 let
                                     newBook =
                                         { book
-                                            | expenseCategories = newModel.inputExpenseCategory :: book.expenseCategories
+                                            | expenseCategories = book.expenseCategories ++ [ newModel.inputExpenseCategory ]
                                             , lastEdited = time
                                         }
 
@@ -267,7 +267,7 @@ update msg model =
                                 let
                                     newBook =
                                         { book
-                                            | earningCategories = newModel.inputEarningCategory :: book.earningCategories
+                                            | earningCategories = book.earningCategories ++ [ newModel.inputEarningCategory ]
                                             , lastEdited = time
                                         }
 
@@ -340,21 +340,21 @@ view model =
             [ render model ]
 
         -- LOG MODEL --
-        , div []
-            ([ let
-                val =
-                    model.currentTime
-               in
-               text (toString val)
-             ]
-                ++ [ div [] [] ]
-                ++ [ let
-                        book =
-                            Maybe.withDefault (dummyBook "") model.currentBook
-                     in
-                     text book.id
-                   ]
-            )
+        -- , div []
+        --     ([ let
+        --         val =
+        --             model.currentTime
+        --        in
+        --        text (toString val)
+        --      ]
+        --         ++ [ div [] [] ]
+        --         ++ [ let
+        --                 book =
+        --                     Maybe.withDefault (dummyBook "") model.currentBook
+        --              in
+        --              text book.id
+        --            ]
+        --     )
         ]
 
 
