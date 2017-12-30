@@ -5,9 +5,8 @@
 
 ## Currently working
 
-- categories to right
 - user can add categories
-- books are the only thing to sync in storage
-- books are string when ported
-    - it is decoded when used in elm
-    - it is encoded before sending to js
+
+## TODO
+
+- User can defined his own defaultCategories.

@@ -35,6 +35,9 @@ main =
 port setStorage : String -> Cmd msg
 
 
+port deleteBook : Id -> Cmd msg
+
+
 port saveBook : String -> Cmd msg
 
 
@@ -52,26 +55,9 @@ defaultEarningCategories =
     [ "Uncategorized", "Salary", "Bonus", "Gift", "Reimbursement", "Sideline", "Unexpected" ]
 
 
-defaultBook1 : Book
-defaultBook1 =
-    Book "b0" "Personal" defaultExpenseCategories defaultEarningCategories defaultTransactions
-
-
-defaultBook2 : Book
-defaultBook2 =
-    Book "b1" "Business" defaultExpenseCategories defaultEarningCategories defaultTransactions
-
-
-defaultTransactions : Dict Id Transaction
-defaultTransactions =
-    let
-        transaction01 =
-            Transaction "t0" 12.5 "Food" ""
-
-        transaction02 =
-            Transaction "t1" 4.0 "Leisure" "ice-cream"
-    in
-    Dict.fromList [ ( "t0", transaction01 ), ( "t1", transaction02 ) ]
+dummyBook : Id -> Book
+dummyBook id =
+    Book ("dummy" ++ id) ("dummy" ++ id) [] [] Dict.empty
 
 
 init : Maybe String -> Nav.Location -> ( Model, Cmd Msg )
@@ -80,25 +66,25 @@ init maybeBooks loc =
         Nothing ->
             Model HomeR initBooks "" "" "" Nothing ! []
 
-        Just books ->
+        Just strBook ->
             let
                 resultBooks =
-                    decodeString decodeBooks books
+                    decodeString decodeBooks strBook
 
-                books_ =
+                books =
                     case resultBooks of
-                        Ok books__ ->
-                            books__
+                        Ok books_ ->
+                            books_
 
                         Err _ ->
                             initBooks
             in
-            Model HomeR books_ "" "" "" Nothing ! []
+            Model HomeR books "" "" "" Nothing ! []
 
 
 initBooks : Dict String Book
 initBooks =
-    Dict.fromList [ ( "b0", defaultBook1 ), ( "b1", defaultBook2 ) ]
+    Dict.empty
 
 
 route : Url.Parser (Route -> a) a
@@ -161,28 +147,34 @@ update msg model =
                         newBooks =
                             Dict.insert id newBook model.books
                     in
-                    { model | books = newBooks } ! [ setStorage (encode 2 (encodeBooks newBooks)) ]
+                    { model | books = newBooks } ! [ saveBook (encode 2 (encodeBook newBook)) ]
 
         DeleteBook bookId ->
             let
                 newBooks =
                     Dict.remove bookId model.books
             in
-            { model | books = newBooks } ! [ setStorage (encode 2 (encodeBooks newBooks)) ]
+            { model | books = newBooks } ! [ deleteBook bookId ]
 
         DeleteExpenseCategory bookId name ->
             let
                 newBooks =
                     Dict.update bookId (deleteCategory Expense name) model.books
+
+                editedBook =
+                    Maybe.withDefault (dummyBook (toString <| Dict.size model.books)) (Dict.get bookId newBooks)
             in
-            { model | books = newBooks } ! [ setStorage (encode 2 (encodeBooks newBooks)) ]
+            { model | books = newBooks } ! [ saveBook (encode 2 (encodeBook editedBook)) ]
 
         DeleteEarningCategory bookId name ->
             let
                 newBooks =
                     Dict.update bookId (deleteCategory Earning name) model.books
+
+                editedBook =
+                    Maybe.withDefault (dummyBook (toString <| Dict.size model.books)) (Dict.get bookId newBooks)
             in
-            { model | books = newBooks } ! [ setStorage (encode 2 (encodeBooks newBooks)) ]
+            { model | books = newBooks } ! [ saveBook (encode 2 (encodeBook editedBook)) ]
 
         InputCategory book category name ->
             model ! []
