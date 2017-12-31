@@ -3,7 +3,10 @@ port module Main exposing (..)
 -- elm-package install --yes elm-community/json-extra
 -- import List.Extra
 
+import Date exposing (Date, Month(..))
+import Date.Extra as Date
 import Dict exposing (Dict)
+import Dom
 import Hashids exposing (hashidsMinimum)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -35,9 +38,6 @@ main =
 ---- PORTS ----
 
 
-port setStorage : String -> Cmd msg
-
-
 port deleteBook : Id -> Cmd msg
 
 
@@ -67,7 +67,7 @@ init : Maybe String -> Nav.Location -> ( Model, Cmd Msg )
 init maybeBooks loc =
     case maybeBooks of
         Nothing ->
-            Model HomeR initBooks "" "" "" Nothing 0 ! [ getTimeNow ]
+            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" ! [ getTimeNow ]
 
         Just strBook ->
             let
@@ -82,7 +82,7 @@ init maybeBooks loc =
                         Err _ ->
                             initBooks
             in
-            Model HomeR books "" "" "" Nothing 0 ! [ getTimeNow ]
+            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" ! [ getTimeNow ]
 
 
 initBooks : Dict String Book
@@ -94,8 +94,8 @@ route : Url.Parser (Route -> a) a
 route =
     Url.oneOf
         [ Url.map HomeR Url.top
-        , Url.map AppR (Url.s "app")
-        , Url.map BookR (Url.s "app" </> Url.string)
+        , Url.map AppR (Url.s "books")
+        , Url.map BookR (Url.s "books" </> Url.string)
         ]
 
 
@@ -113,8 +113,18 @@ type Msg
     | DeleteBook Id
     | DeleteExpenseCategory Id String
     | DeleteEarningCategory Id String
-    | InputCategory TransactionCategory String
-    | AddCategory TransactionCategory
+    | InputCategory CategoryType String
+    | AddCategory CategoryType
+    | SelectTransactionCategory CategoryType
+    | SelectCategory String
+    | InputPrice String
+    | InputDescription String
+    | ChangeCategoryType
+    | ChangeCategory String
+    | AddTransaction
+    | CancelTransactionInput
+    | FocusOn String
+    | FocusResult (Result Dom.Error ())
     | NoOp
     | ClearBookInputs
 
@@ -144,7 +154,7 @@ update msg model =
             update ClearBookInputs { model | currentRoute = cRoute }
 
         SelectBook bookId ->
-            { model | currentBook = Dict.get bookId model.books } ! []
+            { model | currentBook = Dict.get bookId model.books } ! [ focusTo "tr-input-price" ]
 
         InputBookName bookName ->
             { model | inputBookName = bookName } ! []
@@ -198,7 +208,11 @@ update msg model =
                 editedBook =
                     Maybe.withDefault (dummyBook (toString <| Dict.size newModel.books)) (Dict.get bookId newBooks)
             in
-            { newModel | books = newBooks, currentBook = Just editedBook } ! [ saveBook (encode 2 (encodeBook editedBook)), cmds ]
+            { newModel | books = newBooks, currentBook = Just editedBook }
+                ! [ saveBook (encode 2 (encodeBook editedBook))
+                  , cmds
+                  , focusTo "tr-input-price"
+                  ]
 
         DeleteEarningCategory bookId name ->
             let
@@ -215,17 +229,21 @@ update msg model =
                 editedBook =
                     Maybe.withDefault (dummyBook (toString <| Dict.size newModel.books)) (Dict.get bookId newBooks)
             in
-            { newModel | books = newBooks, currentBook = Just editedBook } ! [ saveBook (encode 2 (encodeBook editedBook)), cmds ]
+            { newModel | books = newBooks, currentBook = Just editedBook }
+                ! [ saveBook (encode 2 (encodeBook editedBook))
+                  , cmds
+                  , focusTo "tr-input-price"
+                  ]
 
-        InputCategory category name ->
-            case category of
+        InputCategory categoryType name ->
+            case categoryType of
                 Expense ->
                     { model | inputExpenseCategory = name } ! []
 
                 Earning ->
                     { model | inputEarningCategory = name } ! []
 
-        AddCategory category ->
+        AddCategory categoryType ->
             let
                 ( newModel, cmds ) =
                     model ! [ getTimeNow ]
@@ -238,7 +256,7 @@ update msg model =
                     newModel ! [ cmds ]
 
                 Just book ->
-                    case category of
+                    case categoryType of
                         Expense ->
                             if List.member newModel.inputExpenseCategory book.expenseCategories then
                                 newModel ! [ cmds ]
@@ -258,7 +276,10 @@ update msg model =
                                     , inputExpenseCategory = ""
                                     , currentBook = Just newBook
                                 }
-                                    ! [ saveBook (encode 2 (encodeBook newBook)), cmds ]
+                                    ! [ saveBook (encode 2 (encodeBook newBook))
+                                      , cmds
+                                      , focusTo "tr-input-category-Expense"
+                                      ]
 
                         Earning ->
                             if List.member newModel.inputEarningCategory book.earningCategories then
@@ -279,7 +300,51 @@ update msg model =
                                     , inputEarningCategory = ""
                                     , currentBook = Just newBook
                                 }
-                                    ! [ saveBook (encode 2 (encodeBook newBook)), cmds ]
+                                    ! [ saveBook (encode 2 (encodeBook newBook))
+                                      , cmds
+                                      , focusTo "tr-input-category-Earning"
+                                      ]
+
+        ChangeCategoryType ->
+            let
+                currentBook =
+                    Maybe.withDefault (dummyBook "dummy") model.currentBook
+
+                ( categoryType, category ) =
+                    case model.selectedCategoryType of
+                        Expense ->
+                            ( Earning, Maybe.withDefault "Uncategorized" (List.head currentBook.earningCategories) )
+
+                        Earning ->
+                            ( Expense, Maybe.withDefault "Uncategorized" (List.head currentBook.expenseCategories) )
+            in
+            { model | selectedCategoryType = categoryType, selectedCategory = category } ! [ focusTo "tr-input-price" ]
+
+        ChangeCategory name ->
+            { model | selectedCategory = name } ! []
+
+        AddTransaction ->
+            { model | inputPrice = "", inputDescription = "" } ! [ focusTo "tr-input-price" ]
+
+        CancelTransactionInput ->
+            { model | inputPrice = "", inputDescription = "" } ! [ focusTo "tr-input-price" ]
+
+        InputPrice priceString ->
+            { model | inputPrice = priceString } ! []
+
+        InputDescription description ->
+            { model | inputDescription = description } ! []
+
+        FocusOn id ->
+            model ! [ Task.attempt FocusResult (Dom.focus id) ]
+
+        FocusResult result ->
+            case result of
+                Err (Dom.NotFound id) ->
+                    model ! []
+
+                Ok () ->
+                    model ! []
 
         _ ->
             model ! []
@@ -289,7 +354,7 @@ update msg model =
 ---- UTILITY FUNCTIONS ----
 
 
-deleteCategory : TransactionCategory -> String -> Time -> Maybe Book -> Maybe Book
+deleteCategory : CategoryType -> String -> Time -> Maybe Book -> Maybe Book
 deleteCategory category name time maybeBook =
     case maybeBook of
         Nothing ->
@@ -318,6 +383,23 @@ getTimeNow =
         |> Task.perform TimeNow
 
 
+focusTo : String -> Cmd Msg
+focusTo elementId =
+    Task.perform FocusOn (Task.succeed elementId)
+
+
+onEscape : Msg -> Attribute Msg
+onEscape msg =
+    let
+        isEscape code =
+            if code == 27 then
+                Json.Decode.succeed msg
+            else
+                Json.Decode.fail "not escape"
+    in
+    on "keydown" (Json.Decode.andThen isEscape keyCode)
+
+
 salt : Hashids.Context
 salt =
     hashidsMinimum "ako ay may lobo" 5
@@ -334,27 +416,30 @@ replace key newValue dict =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ navbar
-        , div [ class "app-content" ]
-            [ render model ]
+    let
+        heroHidden =
+            case model.currentRoute of
+                HomeR ->
+                    False
 
-        -- LOG MODEL --
-        -- , div []
-        --     ([ let
-        --         val =
-        --             model.currentTime
-        --        in
-        --        text (toString val)
-        --      ]
-        --         ++ [ div [] [] ]
-        --         ++ [ let
-        --                 book =
-        --                     Maybe.withDefault (dummyBook "") model.currentBook
-        --              in
-        --              text book.id
-        --            ]
-        --     )
+                _ ->
+                    True
+    in
+    div []
+        [ section [ class "hero is-medium is-dark is-bold" ]
+            [ div [ class "hero-head" ]
+                [ navbar ]
+            , div [ class "hero-body", hidden heroHidden ]
+                [ div [ class "container" ]
+                    [ h1 [ class "title" ] [ text "record, monitor, profit" ]
+                    , h2 [ class "subtitle" ]
+                        [ text "work on- or offline"
+                        ]
+                    ]
+                ]
+            , div [ class "hero-foot", hidden heroHidden ] [ div [ class "container" ] [] ]
+            ]
+        , render model
         ]
 
 
@@ -364,8 +449,12 @@ navbar =
         [ div [ class "navbar-brand" ]
             [ a [ class "navbar-item", onClick (NewUrl "/") ]
                 [ h1 [ class "title is-light is-3" ] [ text "transaccion" ] ]
-            , a [ class "navbar-item", onClick (NewUrl "/app") ]
-                [ h1 [ class "subtitle is-4 is-light" ] [ text "use app" ] ]
+            , a [ class "navbar-item", onClick (NewUrl "/books") ]
+                [ h1 [ class "subtitle is-4 is-light" ]
+                    [ text "view books"
+                    , span [ class "icon" ] [ i [ class "fa fa-angle-double-right" ] [] ]
+                    ]
+                ]
             ]
         ]
 
@@ -374,11 +463,10 @@ render : Model -> Html Msg
 render model =
     case model.currentRoute of
         HomeR ->
-            div [ class "block" ]
-                [ h1 [ class "subtitle is-4" ] [ text "This is the home page." ] ]
+            text ""
 
         AppR ->
-            div [ class "columns is-multiline" ]
+            div [ class "books-content columns is-multiline" ]
                 (List.map bookCard (List.reverse <| List.sortBy .lastEdited (Dict.values model.books))
                     ++ [ addBookForm model ]
                 )
@@ -390,11 +478,16 @@ render model =
             in
             case maybeBook of
                 Just book ->
-                    div [ class "block" ]
+                    div [ class "books-content block" ]
                         [ div [ class "columns" ]
                             [ div [ class "column is-two-thirds" ]
-                                [ h1 [ class "title is-3" ] [ text book.name ]
-                                , h1 [ class "subtitle is-6" ] [ text ("/book" ++ toString id ++ "/") ]
+                                [ div [ class "columns" ]
+                                    [ div [ class "column is-3" ]
+                                        [ h1 [ class "title is-3" ] [ text book.name ] ]
+                                    , div [ class "column" ] [ transactionInputField model ]
+                                    ]
+                                , hr [] []
+                                , transactionsTable model
                                 ]
                             , div [ class "column is-one-third" ]
                                 [ categoriesBox book Expense DeleteExpenseCategory
@@ -431,14 +524,14 @@ xTag color xMessage name =
         ]
 
 
-categoriesBox : Book -> TransactionCategory -> (Id -> String -> Msg) -> Html Msg
+categoriesBox : Book -> CategoryType -> (Id -> String -> Msg) -> Html Msg
 categoriesBox book category msg =
     let
         ( color, categories, name ) =
             if category == Expense then
-                ( "is-danger", book.expenseCategories, "Expense Categories" )
+                ( "is-link", book.expenseCategories, "Expense Categories" )
             else
-                ( "is-success", book.earningCategories, "Earning Categories" )
+                ( "is-link", book.earningCategories, "Earning Categories" )
     in
     div [ class "box" ]
         [ article [ class "media" ]
@@ -458,21 +551,24 @@ categoriesBox book category msg =
         ]
 
 
-addCategoryForm : Book -> TransactionCategory -> Html Msg
-addCategoryForm book category =
+addCategoryForm : Book -> CategoryType -> Html Msg
+addCategoryForm book categoryType =
     span [ style [ ( "font-size", "1rem" ), ( "font-weight", "normal" ), ( "width", "100px" ) ] ]
-        [ div [ class "field has-addons" ]
+        [ Html.form [ class "field has-addons", onSubmit (AddCategory categoryType) ]
             [ div [ class "control" ]
                 [ input
                     [ class "input is-small"
+                    , id ("tr-input-category-" ++ toString categoryType)
                     , type_ "text"
                     , placeholder "new"
-                    , onInput (InputCategory category)
+                    , minlength 1
+                    , maxlength 15
+                    , onInput (InputCategory categoryType)
                     ]
                     []
                 ]
             , div [ class "control" ]
-                [ button [ class "button is-small is-primary", onClick (AddCategory category) ]
+                [ button [ class "button is-small is-dark", type_ "submit" ]
                     [ span [ class "icon" ] [ i [ class "fa fa-plus" ] [] ] ]
                 ]
             ]
@@ -481,29 +577,160 @@ addCategoryForm book category =
 
 bookCard : Book -> Html Msg
 bookCard book =
+    let
+        created =
+            book.created
+                |> Date.fromTime
+                |> Date.toFormattedString "EEE, d-MMM-yy, HH:mm"
+
+        lastEdited =
+            book.lastEdited
+                |> Date.fromTime
+                |> Date.toFormattedString "EEE, d-MMM-yy, HH:mm"
+    in
     div [ class "column is-3" ]
-        [ article [ class "message" ]
-            [ div [ class "message-header" ]
-                [ text ("book " ++ toString book.id)
-                , button [ class "delete", onClick (DeleteBook book.id) ] []
+        [ div [ class "card" ]
+            [ header [ class "card-header" ]
+                [ p [ class "card-header-title" ]
+                    [ text book.name
+                    , span [ class "icon is-left" ]
+                        [ i [ class "fa fa-book" ] [] ]
+                    ]
                 ]
-            , div [ onClick (SelectBook book.id) ]
-                [ div [ class "message-body", onClick (NewUrl ("/app/" ++ book.id)) ] [ text book.name ] ]
+            , div [ class "card-content" ]
+                [ div [ class "content" ]
+                    [ node "time" [] [ text ("Last Edited: " ++ lastEdited) ]
+                    ]
+                ]
+            , footer [ class "card-footer" ]
+                [ a [ class "card-footer-item", onClick (DeleteBook book.id) ] [ text "Delete" ]
+                , div [ class "card-footer-item", onClick (SelectBook book.id) ]
+                    [ a [ onClick (NewUrl ("/books/" ++ book.id)) ] [ text "Open" ] ]
+                ]
             ]
         ]
 
 
 addBookForm : Model -> Html Msg
 addBookForm model =
-    div [ class "column is-3" ]
+    Html.form [ class "column is-3", onSubmit (AddBook model.inputBookName) ]
         [ div [ class "field has-addons" ]
-            [ p [ class "control" ]
-                [ input [ class "input", type_ "text", placeholder "name", onInput InputBookName ] [] ]
+            [ p [ class "control has-icons-left" ]
+                [ input [ class "input is-medium", type_ "text", placeholder "add new book", onInput InputBookName ] []
+                , span [ class "icon is-left" ]
+                    [ i [ class "fa fa-book" ] [] ]
+                ]
             , p [ class "control" ]
-                [ button [ class "button is-dark", onClick (AddBook model.inputBookName) ]
+                [ button [ class "button is-dark is-medium", type_ "submit" ]
                     [ span [ class "icon" ]
                         [ i [ class "fa fa-plus" ] [] ]
                     ]
                 ]
             ]
         ]
+
+
+footer_ : Html Msg
+footer_ =
+    footer [ class "footer" ]
+        [ div [ class "content has-text-centered" ]
+            [ p []
+                [ strong [] [ text "transaccion" ]
+                , text " by "
+                , a [] [ text "Joseph Caburnay" ]
+                , text ". The source code is licensed "
+                , a [ href "http://opensource.org/licenses/mit-license.php" ] [ text "MIT" ]
+                , text "."
+                ]
+            ]
+        ]
+
+
+transactionsTable : Model -> Html Msg
+transactionsTable model =
+    case model.currentBook of
+        Nothing ->
+            text "No selected book."
+
+        Just currentBook ->
+            div [ class "container" ] [ text "These are the transactions" ]
+
+
+transactionInputField : Model -> Html Msg
+transactionInputField model =
+    let
+        ( categories, categoryTypeColor ) =
+            case model.selectedCategoryType of
+                Expense ->
+                    ( .expenseCategories (Maybe.withDefault (dummyBook "dummy") model.currentBook)
+                    , "is-dark"
+                    )
+
+                Earning ->
+                    ( .earningCategories (Maybe.withDefault (dummyBook "dummy") model.currentBook)
+                    , "is-link"
+                    )
+    in
+    Html.form [ class "field is-grouped", onSubmit AddTransaction, onEscape CancelTransactionInput ]
+        [ div [ class "field has-addons" ]
+            [ p [ class "control" ]
+                [ a [ class ("button " ++ categoryTypeColor), onClick ChangeCategoryType ]
+                    [ text (toString model.selectedCategoryType) ]
+                ]
+            , p [ class "control has-icons-left", style [ ( "width", "115px" ) ] ]
+                [ input
+                    [ class "input"
+                    , id "tr-input-price"
+                    , type_ "text"
+                    , placeholder "price"
+                    , maxlength 15
+                    , value model.inputPrice
+                    , onInput InputPrice
+
+                    -- , attribute "min" "0"
+                    -- , attribute "step" "0.01"
+                    ]
+                    []
+                , icon "fa-money" "is-left"
+                ]
+            , div [ class "control" ]
+                [ div [ class "select", onInput ChangeCategory ]
+                    [ select []
+                        (List.map (categoryToOptionSelected model.selectedCategory) categories)
+                    ]
+                ]
+            , div [ class "control" ]
+                [ input
+                    [ class "input"
+                    , type_ "text"
+                    , placeholder "description"
+                    , maxlength 150
+                    , value model.inputDescription
+                    , onInput InputDescription
+                    ]
+                    []
+                ]
+            , div [ class "control" ]
+                [ button [ class "button is-dark", type_ "submit" ] [ icon "fa-plus" "" ] ]
+            , div [ class "control" ]
+                [ button [ class "button is-danger", onClick CancelTransactionInput ] [ icon "fa-close" "" ] ]
+            ]
+        ]
+
+
+icon : String -> String -> Html Msg
+icon name additionalAttributes =
+    span [ class ("icon " ++ additionalAttributes) ] [ i [ class ("fa " ++ name) ] [] ]
+
+
+categoryToOptionSelected : String -> String -> Html Msg
+categoryToOptionSelected selectedName name =
+    if selectedName == name then
+        option [ value name, selected True ] [ text name ]
+    else
+        categoryToOption name
+
+
+categoryToOption : String -> Html Msg
+categoryToOption name =
+    option [ value name ] [ text name ]

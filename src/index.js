@@ -22,10 +22,6 @@ let startElm = (function(startingBooks) {
 
   const elm = Main.embed(document.getElementById('root'), startingBooks);
 
-  elm.ports.setStorage.subscribe(strBooks => {
-    console.log("setStorage called with: ", strBooks);
-  });
-
   elm.ports.deleteBook.subscribe(bookId => {
     rs[booksStorage].remove(bookId)
       .then(() => {

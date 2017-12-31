@@ -5,6 +5,10 @@
 
 ## Currently working
 
+- the homepage
+- remove delete in bookCard
+  - or if not, ask for confirmation to delete.
+- show and add transactions
 
 ## TODO
 
@@ -13,5 +17,7 @@
 ## Implemented
 
 - user can add categories
-- add created and lastEdited properties for book and transaction 
+- add created and lastEdited properties for book and transaction
+- set max length for inputcategory
+- input boxes and dropdowns
 

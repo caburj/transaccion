@@ -12,6 +12,10 @@ type alias Model =
     , inputEarningCategory : String
     , currentBook : Maybe Book
     , currentTime : Time
+    , selectedCategory : String
+    , selectedCategoryType : CategoryType
+    , inputPrice : String
+    , inputDescription : String
     }
 
 
@@ -43,7 +47,7 @@ type alias Transaction =
     }
 
 
-type TransactionCategory
+type CategoryType
     = Expense
     | Earning
 
