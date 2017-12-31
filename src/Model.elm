@@ -54,3 +54,27 @@ type CategoryType
 
 type alias Id =
     String
+
+
+
+---- MODEL INIT ----
+
+
+defaultExpenseCategories : List String
+defaultExpenseCategories =
+    [ "Uncategorized", "Food", "Rent", "Transpo", "Leisure", "Misc", "Subscription", "Medical", "Unexpected" ]
+
+
+defaultEarningCategories : List String
+defaultEarningCategories =
+    [ "Uncategorized", "Salary", "Bonus", "Gift", "Reimbursement", "Sideline", "Unexpected" ]
+
+
+dummyBook : Id -> Book
+dummyBook id =
+    Book ("dummy" ++ id) ("dummy" ++ id) [] [] Dict.empty 0.0 0.0
+
+
+initBooks : Dict String Book
+initBooks =
+    Dict.empty

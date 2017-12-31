@@ -44,25 +44,6 @@ port deleteBook : Id -> Cmd msg
 port saveBook : String -> Cmd msg
 
 
-
----- MODEL INIT ----
-
-
-defaultExpenseCategories : List String
-defaultExpenseCategories =
-    [ "Uncategorized", "Food", "Rent", "Transpo", "Leisure", "Misc", "Subscription", "Medical", "Unexpected" ]
-
-
-defaultEarningCategories : List String
-defaultEarningCategories =
-    [ "Uncategorized", "Salary", "Bonus", "Gift", "Reimbursement", "Sideline", "Unexpected" ]
-
-
-dummyBook : Id -> Book
-dummyBook id =
-    Book ("dummy" ++ id) ("dummy" ++ id) [] [] Dict.empty 0.0 0.0
-
-
 init : Maybe String -> Nav.Location -> ( Model, Cmd Msg )
 init maybeBooks loc =
     case maybeBooks of
@@ -83,11 +64,6 @@ init maybeBooks loc =
                             initBooks
             in
             Model HomeR books "" "" "" Nothing 0 "" Expense "" "" ! [ getTimeNow ]
-
-
-initBooks : Dict String Book
-initBooks =
-    Dict.empty
 
 
 route : Url.Parser (Route -> a) a
@@ -122,6 +98,7 @@ type Msg
     | ChangeCategoryType
     | ChangeCategory String
     | AddTransaction
+    | DeleteTransaction Id
     | CancelTransactionInput
     | FocusOn String
     | FocusResult (Result Dom.Error ())
@@ -323,9 +300,6 @@ update msg model =
         ChangeCategory name ->
             { model | selectedCategory = name } ! []
 
-        AddTransaction ->
-            { model | inputPrice = "", inputDescription = "" } ! [ focusTo "tr-input-price" ]
-
         CancelTransactionInput ->
             { model | inputPrice = "", inputDescription = "" } ! [ focusTo "tr-input-price" ]
 
@@ -334,6 +308,83 @@ update msg model =
 
         InputDescription description ->
             { model | inputDescription = description } ! []
+
+        AddTransaction ->
+            let
+                ( newModel, cmds ) =
+                    model ! [ getTimeNow ]
+
+                time =
+                    newModel.currentTime
+
+                resultPrice =
+                    String.toFloat model.inputPrice
+
+                currentBook =
+                    Maybe.withDefault (dummyBook (getId time)) model.currentBook
+            in
+            case resultPrice of
+                Err err ->
+                    newModel ! [ cmds, focusTo "tr-input-price" ]
+
+                Ok price ->
+                    let
+                        realPrice =
+                            case newModel.selectedCategoryType of
+                                Expense ->
+                                    -price
+
+                                Earning ->
+                                    price
+
+                        id =
+                            getId time
+
+                        newTransaction =
+                            Transaction id realPrice newModel.selectedCategory newModel.inputDescription time time
+
+                        newBooks =
+                            Dict.update currentBook.id (addTransaction newTransaction) newModel.books
+
+                        newCurrentBook =
+                            Dict.get currentBook.id newBooks
+                    in
+                    { newModel
+                        | currentBook = newCurrentBook
+                        , books = newBooks
+                        , inputPrice = ""
+                        , inputDescription = ""
+                    }
+                        ! [ saveBook (encode 2 (encodeBook (Maybe.withDefault (dummyBook "dummy") newCurrentBook)))
+                          , cmds
+                          , focusTo "tr-input-price"
+                          ]
+
+        DeleteTransaction id ->
+            let
+                ( newModel, cmds ) =
+                    model ! [ getTimeNow ]
+
+                time =
+                    newModel.currentTime
+
+                currentBook =
+                    Maybe.withDefault (dummyBook (getId time)) model.currentBook
+
+                newTransactions =
+                    Dict.remove id currentBook.transactions
+
+                newCurrentBook =
+                    { currentBook | transactions = newTransactions, lastEdited = time }
+
+                newBooks =
+                    replace currentBook.id newCurrentBook newModel.books
+            in
+            { newModel | books = newBooks, currentBook = Just newCurrentBook }
+                ! [ saveBook (encode 2 (encodeBook newCurrentBook))
+                  , cmds
+                  , focusTo "tr-input-price"
+                  ]
 
         FocusOn id ->
             model ! [ Task.attempt FocusResult (Dom.focus id) ]
@@ -352,6 +403,20 @@ update msg model =
 
 
 ---- UTILITY FUNCTIONS ----
+
+
+addTransaction : Transaction -> Maybe Book -> Maybe Book
+addTransaction newTransaction maybeOldBook =
+    case maybeOldBook of
+        Nothing ->
+            Nothing
+
+        Just oldBook ->
+            let
+                newTransactions =
+                    Dict.insert newTransaction.id newTransaction oldBook.transactions
+            in
+            Just { oldBook | transactions = newTransactions, lastEdited = newTransaction.lastEdited }
 
 
 deleteCategory : CategoryType -> String -> Time -> Maybe Book -> Maybe Book
@@ -403,6 +468,13 @@ onEscape msg =
 salt : Hashids.Context
 salt =
     hashidsMinimum "ako ay may lobo" 5
+
+
+getId : Time -> Id
+getId time =
+    time
+        |> floor
+        |> Hashids.encode salt
 
 
 replace : comparable -> v -> Dict comparable v -> Dict comparable v
@@ -653,7 +725,64 @@ transactionsTable model =
             text "No selected book."
 
         Just currentBook ->
-            div [ class "container" ] [ text "These are the transactions" ]
+            div [ class "column" ]
+                [ h1 [ class "subtitle" ] [ text "These are the transactions" ]
+                , table [ class "table is-hoverable is-fullwidth" ]
+                    [ thead []
+                        [ tr []
+                            [ th [] [ text "date" ]
+                            , th [] [ text "price" ]
+                            , th [] [ text "category" ]
+                            , th [] [ text "description" ]
+                            , th [] []
+                            ]
+                        ]
+                    , tbody []
+                        (currentBook.transactions
+                            |> Dict.values
+                            |> List.sortBy .created
+                            |> List.reverse
+                            |> List.map listTransaction
+                        )
+                    ]
+                ]
+
+
+listTransaction : Transaction -> Html Msg
+listTransaction transaction =
+    let
+        date =
+            transaction.created
+                |> Date.fromTime
+                |> Date.toFormattedString "d-MMM"
+
+        ( price, transactionType ) =
+            if transaction.price < 0 then
+                ( "(" ++ toString -transaction.price ++ ")", Expense )
+            else
+                ( toString transaction.price, Earning )
+
+        category =
+            transaction.category
+
+        description =
+            transaction.description
+
+        priceClass =
+            case transactionType of
+                Expense ->
+                    "tr-price"
+
+                Earning ->
+                    "tr-earning"
+    in
+    tr []
+        [ td [] [ text date ]
+        , td [ class priceClass ] [ text price ]
+        , td [] [ text category ]
+        , td [] [ text description ]
+        , td [] [ button [ class "delete is-medium", onClick (DeleteTransaction transaction.id) ] [] ]
+        ]
 
 
 transactionInputField : Model -> Html Msg

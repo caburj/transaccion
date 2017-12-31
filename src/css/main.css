@@ -28,3 +28,10 @@ nav.navbar {
   margin-right: 20px;
 }
 
+.tr-price {
+  color: red;
+}
+
+.tr-earning {
+  color: blue;
+}
