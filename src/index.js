@@ -9,7 +9,7 @@ import './css/main.css';
 import registerServiceWorker from './js/registerServiceWorker';
 import booksModule from './js/rs-books-module'; 
 
-let booksStorage = "books002";
+let booksStorage = "transaccion";
 let rs = new RemoteStorage({
   modules: [booksModule(booksStorage)]
 });
