@@ -1,7 +1,6 @@
 port module Main exposing (..)
 
 -- elm-package install --yes elm-community/json-extra
--- import List.Extra
 
 import Date exposing (Date, Month(..))
 import Date.Extra as Date
@@ -14,6 +13,7 @@ import Html.Events exposing (..)
 import Json.Decode exposing (decodeString)
 import Json.Encode exposing (encode)
 import Json_ exposing (decodeBooks, encodeBook, encodeBooks)
+import List.Extra exposing (unique)
 import Model exposing (..)
 import Navigation as Nav
 import Task
@@ -131,7 +131,19 @@ update msg model =
             update ClearBookInputs { model | currentRoute = cRoute }
 
         SelectBook bookId ->
-            { model | currentBook = Dict.get bookId model.books } ! [ focusTo "tr-input-price" ]
+            let
+                cBook =
+                    Maybe.withDefault (dummyBook "dummy") (Dict.get bookId model.books)
+
+                category =
+                    case model.selectedCategoryType of
+                        Expense ->
+                            Maybe.withDefault "Uncategorized" (List.head cBook.expenseCategories)
+
+                        Earning ->
+                            Maybe.withDefault "Uncategorized" (List.head cBook.earningCategories)
+            in
+            { model | selectedCategory = category, currentBook = Just cBook } ! [ focusTo "tr-input-price" ]
 
         InputBookName bookName ->
             { model | inputBookName = bookName } ! []
@@ -505,7 +517,7 @@ view model =
                 [ div [ class "container" ]
                     [ h1 [ class "title" ] [ text "record, monitor, profit" ]
                     , h2 [ class "subtitle" ]
-                        [ text "work on- or offline"
+                        [ text "record your transactions using this very simple and intuitive app"
                         ]
                     ]
                 ]
@@ -562,7 +574,9 @@ render model =
                                 , transactionsTable model
                                 ]
                             , div [ class "column is-one-third" ]
-                                [ categoriesBox book Expense DeleteExpenseCategory
+                                [ summaryBox book
+                                , chartBox book
+                                , categoriesBox book Expense DeleteExpenseCategory
                                 , categoriesBox book Earning DeleteEarningCategory
                                 ]
                             ]
@@ -620,6 +634,122 @@ categoriesBox book category msg =
                     ]
                 ]
             ]
+        ]
+
+
+summaryBox : Book -> Html Msg
+summaryBox book =
+    div [ class "box" ]
+        [ h1 [ class "subtitle is-5" ] [ text "Summary" ]
+
+        -- , hr [] []
+        , summaryTable (Dict.values book.transactions)
+        ]
+
+
+summaryTable : List Transaction -> Html Msg
+summaryTable transactions =
+    summaryList transactions
+
+
+summaryList : List Transaction -> Html Msg
+summaryList transactions =
+    let
+        rows =
+            transactions
+                |> summarize
+                |> List.sortBy .category
+                |> List.map summaryRow
+
+        summaryHeader =
+            thead []
+                [ tr []
+                    [ th [] [ text "category" ]
+                    , th [] [ text "total price" ]
+                    , th [] [ text "in chart" ]
+                    ]
+                ]
+    in
+    case List.length rows of
+        0 ->
+            div [] [ text "No inputted transactions." ]
+
+        _ ->
+            summaryHeader
+                :: [ tbody [] rows ]
+                |> table [ class "table is-hoverable is-fullwidth" ]
+
+
+summaryRow : SummaryByCategory -> Html Msg
+summaryRow categorySummary =
+    let
+        ( priceText, transactionType ) =
+            if categorySummary.totalPrice < 0 then
+                ( "(" ++ toString -categorySummary.totalPrice ++ ")", Expense )
+            else
+                ( toString categorySummary.totalPrice, Earning )
+
+        priceClass =
+            case transactionType of
+                Expense ->
+                    "tr-price"
+
+                Earning ->
+                    "tr-earning"
+    in
+    tr []
+        [ td [] [ text categorySummary.category ]
+        , td [ class priceClass ] [ text priceText ]
+        , td []
+            [ input
+                [ type_ "checkbox"
+
+                -- , onClick (ToggleChartInclude categorySummary)
+                , id categorySummary.category
+                , checked categorySummary.includedInChart
+                ]
+                []
+            , label [ for categorySummary.category ] []
+            ]
+        ]
+
+
+summarize : List Transaction -> List SummaryByCategory
+summarize transactions =
+    case transactions of
+        [] ->
+            []
+
+        _ ->
+            let
+                categories =
+                    transactions
+                        |> List.map (\transaction -> transaction.category)
+                        |> unique
+
+                totalPrices =
+                    categories
+                        |> List.map (calcTotalPrice transactions)
+            in
+            List.map2 (SummaryByCategory True) categories totalPrices
+
+
+calcTotalPrice : List Transaction -> String -> Float
+calcTotalPrice transactions category =
+    let
+        validTransactions =
+            List.filter (\transaction -> transaction.category == category) transactions
+    in
+    List.foldl (+) 0 (List.map .price validTransactions)
+
+
+chartBox : Book -> Html Msg
+chartBox book =
+    div [ class "box" ]
+        [ h1 [ class "subtitle is-5" ] [ text "Chart" ]
+        , div [] [ text "Sorry, not yet implemented..." ]
+
+        -- , hr [] []
         ]
 
 
@@ -702,22 +832,6 @@ addBookForm model =
         ]
 
 
-footer_ : Html Msg
-footer_ =
-    footer [ class "footer" ]
-        [ div [ class "content has-text-centered" ]
-            [ p []
-                [ strong [] [ text "transaccion" ]
-                , text " by "
-                , a [] [ text "Joseph Caburnay" ]
-                , text ". The source code is licensed "
-                , a [ href "http://opensource.org/licenses/mit-license.php" ] [ text "MIT" ]
-                , text "."
-                ]
-            ]
-        ]
-
-
 transactionsTable : Model -> Html Msg
 transactionsTable model =
     case model.currentBook of
@@ -725,27 +839,38 @@ transactionsTable model =
             text "No selected book."
 
         Just currentBook ->
-            div [ class "column" ]
-                [ h1 [ class "subtitle" ] [ text "These are the transactions" ]
-                , table [ class "table is-hoverable is-fullwidth" ]
-                    [ thead []
-                        [ tr []
-                            [ th [] [ text "date" ]
-                            , th [] [ text "price" ]
-                            , th [] [ text "category" ]
-                            , th [] [ text "description" ]
-                            , th [] []
+            let
+                transactions =
+                    currentBook.transactions
+                        |> Dict.values
+                        |> List.sortBy .created
+                        |> List.reverse
+            in
+            case transactions of
+                [] ->
+                    div [ class "column" ] [ text "You have no transactions to display :(" ]
+
+                _ ->
+                    div [ class "column" ]
+                        [ h1 [ class "subtitle" ] [ text "List of transactions" ]
+
+                        -- , hr [] []
+                        , table [ class "table is-hoverable is-fullwidth" ]
+                            [ thead []
+                                [ tr []
+                                    [ th [] [ text "date" ]
+                                    , th [] [ text "price" ]
+                                    , th [] [ text "category" ]
+                                    , th [] [ text "description" ]
+                                    , th [] []
+                                    ]
+                                ]
+                            , tbody []
+                                (transactions
+                                    |> List.map listTransaction
+                                )
                             ]
                         ]
-                    , tbody []
-                        (currentBook.transactions
-                            |> Dict.values
-                            |> List.sortBy .created
-                            |> List.reverse
-                            |> List.map listTransaction
-                        )
-                    ]
-                ]
 
 
 listTransaction : Transaction -> Html Msg
@@ -800,13 +925,13 @@ transactionInputField model =
                     , "is-link"
                     )
     in
-    Html.form [ class "field is-grouped", onSubmit AddTransaction, onEscape CancelTransactionInput ]
+    Html.form [ class "field", onSubmit AddTransaction, onEscape CancelTransactionInput ]
         [ div [ class "field has-addons" ]
             [ p [ class "control" ]
                 [ a [ class ("button " ++ categoryTypeColor), onClick ChangeCategoryType ]
                     [ text (toString model.selectedCategoryType) ]
                 ]
-            , p [ class "control has-icons-left", style [ ( "width", "115px" ) ] ]
+            , p [ class "control has-icons-left" ]
                 [ input
                     [ class "input"
                     , id "tr-input-price"
@@ -815,6 +940,7 @@ transactionInputField model =
                     , maxlength 15
                     , value model.inputPrice
                     , onInput InputPrice
+                    , style [ ( "width", "100px" ) ]
 
                     -- , attribute "min" "0"
                     -- , attribute "step" "0.01"
@@ -836,6 +962,8 @@ transactionInputField model =
                     , maxlength 150
                     , value model.inputDescription
                     , onInput InputDescription
+
+                    -- , style [ ( "width", "200px" ) ]
                     ]
                     []
                 ]

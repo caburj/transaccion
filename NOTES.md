@@ -8,7 +8,7 @@
 - the homepage
 - remove delete in bookCard
   - or if not, ask for confirmation to delete.
-- display transactions
+- display transactions -> this is done but only simple
   - format: Date (Month above, day below), Price Category and description (price above, category beside, description below)
   - is-danger if expense, is-link if earning
   - remove negative in display
