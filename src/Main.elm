@@ -7,6 +7,7 @@ import Date.Extra as Date
 import Dict exposing (Dict)
 import Dom
 import Hashids exposing (hashidsMinimum)
+import Helper
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -48,7 +49,7 @@ init : Maybe String -> Nav.Location -> ( Model, Cmd Msg )
 init maybeBooks loc =
     case maybeBooks of
         Nothing ->
-            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" False Nothing ! [ getTimeNow ]
+            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All ! [ getTimeNow ]
 
         Just strBook ->
             let
@@ -63,7 +64,7 @@ init maybeBooks loc =
                         Err _ ->
                             initBooks
             in
-            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" False Nothing ! [ getTimeNow ]
+            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All ! [ getTimeNow ]
 
 
 route : Url.Parser (Route -> a) a
@@ -102,6 +103,10 @@ type Msg
     | AddTransaction
     | DeleteTransaction Id
     | CancelTransactionInput
+    | CalculateTransactionsToDisplay TransactionsDisplay
+    | ChangeTransactionsDisplay TransactionsDisplay
+    | SelectMonth String
+    | SelectYear String
     | FocusOn String
     | FocusResult (Result Dom.Error ())
     | NoOp
@@ -144,8 +149,42 @@ update msg model =
 
                         Earning ->
                             Maybe.withDefault "Uncategorized" (List.head cBook.earningCategories)
+
+                currentBook =
+                    Maybe.withDefault (dummyBook "dummy") model.currentBook
+
+                listCreated =
+                    currentBook.transactions
+                        |> Dict.values
+                        |> List.map .created
+                        |> List.map Date.fromTime
+
+                listYear =
+                    listCreated
+                        |> List.map Date.year
+                        |> unique
+
+                listMonth =
+                    listCreated
+                        |> List.map Date.month
+                        |> List.map toString
+                        |> unique
+                        |> List.map Helper.monthFromString
+
+                month =
+                    Maybe.withDefault Jan (List.head listMonth)
+
+                year =
+                    Maybe.withDefault 0 (List.head listYear)
             in
-            { model | selectedCategory = category, currentBook = Just cBook } ! [ focusTo "tr-input-price" ]
+            update (ChangeTransactionsDisplay All)
+                { model
+                    | selectedCategory = category
+                    , selectedMonth = month
+                    , selectedYear = year
+                    , currentBook = Just cBook
+                    , currentDisplay = All
+                }
 
         InputBookName bookName ->
             { model | inputBookName = bookName } ! []
@@ -368,15 +407,20 @@ update msg model =
 
                         newCurrentBook =
                             Dict.get currentBook.id newBooks
+
+                        ( newModel2, cmds2 ) =
+                            update (ChangeTransactionsDisplay newModel.currentDisplay)
+                                { newModel
+                                    | currentBook = newCurrentBook
+                                    , books = newBooks
+                                    , inputPrice = ""
+                                    , inputDescription = ""
+                                }
                     in
-                    { newModel
-                        | currentBook = newCurrentBook
-                        , books = newBooks
-                        , inputPrice = ""
-                        , inputDescription = ""
-                    }
+                    newModel2
                         ! [ saveBook (encode 2 (encodeBook (Maybe.withDefault (dummyBook "dummy") newCurrentBook)))
                           , cmds
+                          , cmds2
                           , focusTo "tr-input-price"
                           ]
 
@@ -399,12 +443,48 @@ update msg model =
 
                 newBooks =
                     replace currentBook.id newCurrentBook newModel.books
+
+                ( newModel2, cmds2 ) =
+                    update (ChangeTransactionsDisplay newModel.currentDisplay) { newModel | books = newBooks, currentBook = Just newCurrentBook }
             in
-            { newModel | books = newBooks, currentBook = Just newCurrentBook }
+            newModel2
                 ! [ saveBook (encode 2 (encodeBook newCurrentBook))
                   , cmds
+                  , cmds2
                   , focusTo "tr-input-price"
                   ]
+
+        CalculateTransactionsToDisplay displayType ->
+            let
+                currentBook =
+                    Maybe.withDefault (dummyBook "dummy") model.currentBook
+
+                trDisplay =
+                    calculateTransactionsToDisplay currentBook.transactions displayType
+            in
+            { model | transactionsToDisplay = trDisplay } ! [ focusTo "tr-input-price" ]
+
+        ChangeTransactionsDisplay displayType ->
+            update (CalculateTransactionsToDisplay displayType) { model | currentDisplay = displayType }
+
+        SelectMonth monthString ->
+            let
+                month =
+                    Helper.monthFromString monthString
+            in
+            { model | selectedMonth = month } ! []
+
+        SelectYear yearString ->
+            let
+                year =
+                    case String.toInt yearString of
+                        Ok val ->
+                            val
+
+                        Err _ ->
+                            -999
+            in
+            { model | selectedYear = year } ! []
 
         FocusOn id ->
             model ! [ Task.attempt FocusResult (Dom.focus id) ]
@@ -500,6 +580,44 @@ getId time =
 replace : comparable -> v -> Dict comparable v -> Dict comparable v
 replace key newValue dict =
     Dict.remove key dict |> Dict.insert key newValue
+
+
+calculateTransactionsToDisplay : Dict String Transaction -> TransactionsDisplay -> List Transaction
+calculateTransactionsToDisplay allTransactions displayType =
+    case displayType of
+        All ->
+            Dict.values allTransactions
+
+        ByYear year ->
+            allTransactions
+                |> Dict.values
+                |> List.filter (isInTheGivenYear year)
+
+        ByMonth month year ->
+            let
+                isInTheGivenMonthYear transaction =
+                    let
+                        transactionMonth =
+                            transaction.created
+                                |> Date.fromTime
+                                |> Date.month
+                    in
+                    transactionMonth == month && isInTheGivenYear year transaction
+            in
+            allTransactions
+                |> Dict.values
+                |> List.filter isInTheGivenMonthYear
+
+
+isInTheGivenYear : Int -> Transaction -> Bool
+isInTheGivenYear year transaction =
+    let
+        transactionYear =
+            transaction.created
+                |> Date.fromTime
+                |> Date.year
+    in
+    transactionYear == year
 
 
 
@@ -889,43 +1007,67 @@ addBookForm model =
 
 transactionsTable : Model -> Html Msg
 transactionsTable model =
-    case model.currentBook of
-        Nothing ->
-            text "No selected book."
+    let
+        transactions =
+            model.transactionsToDisplay
 
-        Just currentBook ->
-            let
-                transactions =
-                    currentBook.transactions
-                        |> Dict.values
-                        |> List.sortBy .created
-                        |> List.reverse
-            in
-            case transactions of
-                [] ->
-                    div [ class "column" ] [ text "You have no transactions to display :(" ]
+        currentBook =
+            Maybe.withDefault (dummyBook "dummy") model.currentBook
 
-                _ ->
-                    div [ class "column" ]
-                        [ h1 [ class "subtitle" ] [ text "List of transactions" ]
+        listCreated =
+            currentBook.transactions
+                |> Dict.values
+                |> List.map .created
+                |> List.map Date.fromTime
 
-                        -- , hr [] []
-                        , table [ class "table is-hoverable is-fullwidth" ]
-                            [ thead []
-                                [ tr []
-                                    [ th [] [ text "date" ]
-                                    , th [] [ text "price" ]
-                                    , th [] [ text "category" ]
-                                    , th [] [ text "description" ]
-                                    , th [] []
-                                    ]
-                                ]
-                            , tbody []
-                                (transactions
-                                    |> List.map listTransaction
-                                )
+        listYear =
+            listCreated
+                |> List.map Date.year
+                |> unique
+                |> List.map toString
+
+        listMonth =
+            listCreated
+                |> List.map Date.month
+                |> List.map toString
+                |> unique
+    in
+    case transactions of
+        [] ->
+            div [ class "column" ]
+                [ div [ class "columns" ]
+                    [ div [ class "column is-3" ]
+                        [ h1 [ class "subtitle" ] [ text "List of transactions" ] ]
+                    , div [ class "column" ]
+                        [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
+                    ]
+                , text "You have no transactions to display :("
+                ]
+
+        _ ->
+            div [ class "column" ]
+                [ div [ class "columns" ]
+                    [ div [ class "column is-3" ]
+                        [ h1 [ class "subtitle" ] [ text "List of transactions" ] ]
+                    , div [ class "column" ]
+                        [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
+                    ]
+                , table [ class "table is-hoverable is-fullwidth" ]
+                    [ thead []
+                        [ tr []
+                            [ th [] [ text "date" ]
+                            , th [] [ text "price" ]
+                            , th [] [ text "category" ]
+                            , th [] [ text "description" ]
+                            , th [] []
                             ]
                         ]
+                    , tbody []
+                        (transactions
+                            |> List.map listTransaction
+                        )
+                    ]
+                ]
 
 
 listTransaction : Transaction -> Html Msg
@@ -1014,7 +1156,7 @@ transactionInputField model =
             , div [ class "control" ]
                 [ div [ class "select", onInput ChangeCategory ]
                     [ select []
-                        (List.map (categoryToOptionSelected model.selectedCategory) categories)
+                        (List.map (nameToOptionSelected model.selectedCategory) categories)
                     ]
                 ]
             , div [ class "control" ]
@@ -1043,14 +1185,61 @@ icon name additionalAttributes =
     span [ class ("icon " ++ additionalAttributes) ] [ i [ class ("fa " ++ name) ] [] ]
 
 
-categoryToOptionSelected : String -> String -> Html Msg
-categoryToOptionSelected selectedName name =
+nameToOptionSelected : String -> String -> Html Msg
+nameToOptionSelected selectedName name =
     if selectedName == name then
         option [ value name, selected True ] [ text name ]
     else
-        categoryToOption name
+        nameToOption name
 
 
-categoryToOption : String -> Html Msg
-categoryToOption name =
+nameToOption : String -> Html Msg
+nameToOption name =
     option [ value name ] [ text name ]
+
+
+displayTransactionsControl : List String -> List String -> Month -> Int -> Html Msg
+displayTransactionsControl months years selectedMonth selectedYear =
+    div [ class "field is-grouped is-pulled-right" ]
+        [ div [ class "field" ]
+            [ input
+                [ class "is-checkradio"
+                , id "tr-display-all"
+                , type_ "radio"
+                , name "displayType"
+                , onClick (ChangeTransactionsDisplay All)
+                ]
+                []
+            , label [ for "tr-display-all" ] [ text "All" ]
+            , input
+                [ class "is-checkradio"
+                , id "tr-display-by-month"
+                , type_ "radio"
+                , name "displayType"
+                , onClick (ChangeTransactionsDisplay (ByMonth selectedMonth selectedYear))
+                ]
+                []
+            , label [ for "tr-display-by-month" ] [ text "ByMonth" ]
+            , input
+                [ class "is-checkradio"
+                , id "tr-display-by-year"
+                , type_ "radio"
+                , name "displayType"
+                , onClick (ChangeTransactionsDisplay (ByYear selectedYear))
+                ]
+                []
+            , label [ for "tr-display-by-year" ] [ text "ByYear" ]
+            ]
+        , div [ class "field has-addons" ]
+            [ div [ class "control" ]
+                [ div [ class "select", onInput SelectMonth ]
+                    [ select [] (List.map (nameToOptionSelected (toString selectedMonth)) months)
+                    ]
+                ]
+            , div [ class "control" ]
+                [ div [ class "select", onInput SelectYear ]
+                    [ select [] (List.map (nameToOptionSelected (toString selectedYear)) years)
+                    ]
+                ]
+            ]
+        ]

@@ -5,19 +5,21 @@
 
 ## Currently working
 
+- summary as part of model
+- summary by month
+  - month | total expense | total earning | balance
+- summary of displayed transactions by category
+  - separate expenses from earnings
+- chart above categories
 
 ## TODO
 
-- summary as part of model
 - better summary
   - checkbox for including/excluding expenses/earnings
 - pages for monthly transactions
   - use bulma pagination
-- summary by month
-  - month | total expense | total earning | balance
-- summary for each category in the displayed transactions
-  - separate expenses from earnings
-- options to display transactions by month, year and all
+- github-like timeline for transactions
+  - put below categories
 - the homepage
   - record your transactions to properly monitor your money
   - work with privacy using your own 5apps account
@@ -26,15 +28,8 @@
   - record your transactions
   - in multiple organizational books
   - save locally or sync online
-- github-like timeline for transactions
-  - put below categories
 - documentation
 - post to twitter and facebook with blog-entry
-- chart above categories
-- display transactions -> this is done but only simple
-  - format: Date (Month above, day below), Price Category and description (price above, category beside, description below)
-  - is-danger if expense, is-link if earning
-  - remove negative in display
 - save to csv
 - User can defined his own defaultCategories.
 
@@ -50,6 +45,11 @@
 - summary by category - not yet final
 - deleteBookConfirmation
 - input price -> is-danger if not valid
+- display transactions -> this is done but only simple
+  - format: Date (Month above, day below), Price Category and description (price above, category beside, description below)
+  - is-danger if expense, is-link if earning
+  - remove negative in display
+- options to display transactions by month, year and all
 
 
 ## Notes

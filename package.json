@@ -14,6 +14,7 @@
   "license": "BSD3",
   "devDependencies": {
     "bulma": "^0.6.1",
+    "bulma-extensions": "^0.5.2",
     "font-awesome": "^4.7.0",
     "remotestorage-widget": "^1.1.1",
     "remotestoragejs": "^1.0.2"

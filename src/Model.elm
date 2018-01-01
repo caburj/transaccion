@@ -1,5 +1,6 @@
 module Model exposing (..)
 
+import Date exposing (Month)
 import Dict exposing (Dict)
 import Time exposing (Time)
 
@@ -18,6 +19,10 @@ type alias Model =
     , inputDescription : String
     , confirmDeleteBook : Bool
     , selectedBookToDelete : Maybe Book
+    , transactionsToDisplay : List Transaction
+    , selectedMonth : Month
+    , selectedYear : Int
+    , currentDisplay : TransactionsDisplay
     }
 
 
@@ -63,6 +68,12 @@ type alias SummaryByCategory =
     , category : String
     , totalPrice : Float
     }
+
+
+type TransactionsDisplay
+    = All
+    | ByYear Int
+    | ByMonth Month Int
 
 
 
