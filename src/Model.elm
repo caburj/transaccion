@@ -16,6 +16,8 @@ type alias Model =
     , selectedCategoryType : CategoryType
     , inputPrice : String
     , inputDescription : String
+    , confirmDeleteBook : Bool
+    , selectedBookToDelete : Maybe Book
     }
 
 

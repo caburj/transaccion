@@ -6,12 +6,8 @@
 ## Currently working
 
 
-
 ## TODO
 
-- remove delete in bookCard
-  - or if not, ask for confirmation to delete.
-  - use bulma model for delete confirmation
 - input price -> is-danger if not valid
 - the homepage
   - record your transactions to properly monitor your money
@@ -53,6 +49,7 @@
 - add transactions
 - delete transaction
 - summary by category - not yet final
+- deleteBookConfirmation
 
 
 ## Notes

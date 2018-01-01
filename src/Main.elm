@@ -48,7 +48,7 @@ init : Maybe String -> Nav.Location -> ( Model, Cmd Msg )
 init maybeBooks loc =
     case maybeBooks of
         Nothing ->
-            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" ! [ getTimeNow ]
+            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" False Nothing ! [ getTimeNow ]
 
         Just strBook ->
             let
@@ -63,7 +63,7 @@ init maybeBooks loc =
                         Err _ ->
                             initBooks
             in
-            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" ! [ getTimeNow ]
+            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" False Nothing ! [ getTimeNow ]
 
 
 route : Url.Parser (Route -> a) a
@@ -87,6 +87,8 @@ type Msg
     | InputBookName String
     | AddBook String
     | DeleteBook Id
+    | ConfirmDeleteBook (Maybe Book)
+    | CancelDeleteBook
     | DeleteExpenseCategory Id String
     | DeleteEarningCategory Id String
     | InputCategory CategoryType String
@@ -175,12 +177,18 @@ update msg model =
                     in
                     { newModel | books = newBooks } ! [ saveBook (encode 2 (encodeBook newBook)), cmds ]
 
+        ConfirmDeleteBook maybeBook ->
+            { model | confirmDeleteBook = True, selectedBookToDelete = maybeBook } ! []
+
         DeleteBook bookId ->
             let
                 newBooks =
                     Dict.remove bookId model.books
             in
-            { model | books = newBooks } ! [ deleteBook bookId ]
+            { model | books = newBooks, confirmDeleteBook = False } ! [ deleteBook bookId ]
+
+        CancelDeleteBook ->
+            { model | confirmDeleteBook = False, selectedBookToDelete = Nothing } ! []
 
         DeleteExpenseCategory bookId name ->
             let
@@ -550,10 +558,13 @@ render model =
             text ""
 
         AppR ->
-            div [ class "books-content columns is-multiline" ]
-                (List.map bookCard (List.reverse <| List.sortBy .lastEdited (Dict.values model.books))
-                    ++ [ addBookForm model ]
-                )
+            div []
+                [ div [ class "books-content columns is-multiline" ]
+                    (List.map bookCard (List.reverse <| List.sortBy .lastEdited (Dict.values model.books))
+                        ++ [ addBookForm model ]
+                    )
+                , deleteBookConfirmation model.selectedBookToDelete model.confirmDeleteBook
+                ]
 
         BookR id ->
             let
@@ -805,9 +816,53 @@ bookCard book =
                     ]
                 ]
             , footer [ class "card-footer" ]
-                [ a [ class "card-footer-item", onClick (DeleteBook book.id) ] [ text "Delete" ]
+                [ a [ class "card-footer-item", onClick (ConfirmDeleteBook (Just book)) ] [ text "Delete" ]
                 , div [ class "card-footer-item", onClick (SelectBook book.id) ]
                     [ a [ onClick (NewUrl ("/books/" ++ book.id)) ] [ text "Open" ] ]
+                ]
+            ]
+        ]
+
+
+deleteBookConfirmation : Maybe Book -> Bool -> Html Msg
+deleteBookConfirmation maybeBook isActive =
+    let
+        modalClass =
+            case maybeBook of
+                Nothing ->
+                    "modal"
+
+                Just book ->
+                    if isActive then
+                        "modal is-active"
+                    else
+                        "modal"
+
+        book =
+            Maybe.withDefault (dummyBook "dummy") maybeBook
+
+        message =
+            "Are you sure you want to delete this book?"
+
+        bookName =
+            book.name
+    in
+    div [ class modalClass ]
+        [ div [ class "modal-background" ] []
+        , div [ class "modal-card" ]
+            [ header [ class "modal-card-head" ]
+                [ p [ class "modal-card-title" ] [ text "delete confirmation" ]
+                , button [ class "delete", attribute "aria-label" "close", onClick CancelDeleteBook ] []
+                ]
+            , section [ class "modal-card-body" ]
+                [ div [ class "content" ]
+                    [ p [] [ text message ]
+                    , h1 [ class "title is-5", align "center" ] [ text bookName ]
+                    ]
+                ]
+            , footer [ class "modal-card-foot" ]
+                [ button [ class "button is-danger", onClick (DeleteBook book.id) ] [ text "Delete" ]
+                , button [ class "button", onClick CancelDeleteBook ] [ text "Cancel" ]
                 ]
             ]
         ]
