@@ -5,11 +5,11 @@
 
 ## Currently working
 
+- summary of displayed transactions by category
+  - separate expenses from earnings
 - summary as part of model
 - summary by month
   - month | total expense | total earning | balance
-- summary of displayed transactions by category
-  - separate expenses from earnings
 - chart above categories
 
 ## TODO

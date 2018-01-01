@@ -17,7 +17,8 @@
         "elm-lang/navigation": "2.1.0 <= v < 3.0.0",
         "evancz/url-parser": "2.0.1 <= v < 3.0.0",
         "justinmimbs/elm-date-extra": "2.0.3 <= v < 3.0.0",
-        "pdamoc/elm-hashids": "1.0.3 <= v < 2.0.0"
+        "pdamoc/elm-hashids": "1.0.3 <= v < 2.0.0",
+        "simonh1000/elm-charts": "3.1.0 <= v < 4.0.0"
     },
     "elm-version": "0.18.0 <= v < 0.19.0"
 }

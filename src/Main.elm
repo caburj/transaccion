@@ -2,6 +2,7 @@ port module Main exposing (..)
 
 -- elm-package install --yes elm-community/json-extra
 
+import Chart as C exposing (..)
 import Date exposing (Date, Month(..))
 import Date.Extra as Date
 import Dict exposing (Dict)
@@ -689,8 +690,8 @@ render model =
                                 , transactionsTable model
                                 ]
                             , div [ class "column is-one-third" ]
-                                [ summaryBox book
-                                , chartBox book
+                                [ summaryBoxOfDisplayed model.transactionsToDisplay
+                                , chartBox model.transactionsToDisplay
                                 , categoriesBox book Expense DeleteExpenseCategory
                                 , categoriesBox book Earning DeleteEarningCategory
                                 ]
@@ -752,13 +753,13 @@ categoriesBox book category msg =
         ]
 
 
-summaryBox : Book -> Html Msg
-summaryBox book =
+summaryBoxOfDisplayed : List Transaction -> Html Msg
+summaryBoxOfDisplayed transactions =
     div [ class "box" ]
         [ h1 [ class "subtitle is-5" ] [ text "Summary" ]
 
         -- , hr [] []
-        , summaryTable (Dict.values book.transactions)
+        , summaryTable transactions
         ]
 
 
@@ -858,14 +859,46 @@ calcTotalPrice transactions category =
     List.foldl (+) 0 (List.map .price validTransactions)
 
 
-chartBox : Book -> Html Msg
-chartBox book =
-    div [ class "box" ]
-        [ h1 [ class "subtitle is-5" ] [ text "Chart" ]
-        , div [] [ text "Sorry, not yet implemented..." ]
+chartBox : List Transaction -> Html Msg
+chartBox transactions =
+    let
+        expenses =
+            transactions
+                |> List.filter (\t -> t.price < 0)
+                |> List.map (\e -> { e | price = -e.price })
 
-        -- , hr [] []
+        toDisplay =
+            case expenses of
+                [] ->
+                    text "Nothing to display."
+
+                _ ->
+                    chartExpense expenses
+    in
+    div [ class "box" ]
+        [ h1 [ class "subtitle is-5" ] [ text "Expense Chart" ]
+        , div [] [ toDisplay ]
         ]
+
+
+chartExpense : List Transaction -> Html Msg
+chartExpense expenses =
+    let
+        categories =
+            expenses
+                |> List.map .category
+                |> unique
+
+        prices =
+            categories
+                |> List.map (calcTotalPrice expenses)
+
+        pairs =
+            List.map2 (\category price -> ( price, category )) categories prices
+    in
+    pairs
+        |> C.pie
+        |> C.toHtml
 
 
 addCategoryForm : Book -> CategoryType -> Html Msg
