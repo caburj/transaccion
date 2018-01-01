@@ -9,7 +9,7 @@ yet another expense manager app
 
 ## Description
 
-This app has been inspired by our desire to manage our money to maximize our savings.
+This app has been inspired by our desire to maximize our savings.
 
 ### Record
 
