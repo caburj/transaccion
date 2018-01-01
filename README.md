@@ -11,8 +11,6 @@ yet another expense manager app
 
 This app has been inspired by our desire to maximize our savings.
 
-### Record
-
 **Record your transactions.** It is easy to record any transaction. All it needs are
 1. type (expense or earning)
 2. amount (price)
