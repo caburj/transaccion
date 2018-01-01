@@ -150,11 +150,8 @@ update msg model =
                         Earning ->
                             Maybe.withDefault "Uncategorized" (List.head cBook.earningCategories)
 
-                currentBook =
-                    Maybe.withDefault (dummyBook "dummy") model.currentBook
-
                 listCreated =
-                    currentBook.transactions
+                    cBook.transactions
                         |> Dict.values
                         |> List.map .created
                         |> List.map Date.fromTime
