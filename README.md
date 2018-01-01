@@ -1,15 +1,27 @@
-## Notes
+# transaccion
+yet another expense manager app
 
-1. put assets in `public` folder.
-1. access public folder in the `src` code using `%PUBLIC_URL%`
+## Features
 
-## Coding process
+- **record** your transactions
+- **organize** with multiple books
+- save **locally** or sync **online**
 
-1. `elm-app start` to start dev server
-1. edit `src` code
-1. `elm-app build` for production
-1. `gh-pages -d build` to deploy to github.
+## Description
 
-## References
+This app has been inspired by our desire to manage our money to maximize our savings.
 
-1. Readme of [Create Elm App](https://github.com/halfzebra/create-elm-app/blob/master/template/README.md)
+### Record
+
+**Record your transactions.** It is easy to record any transaction. All it needs are
+1. type (expense or earning)
+2. amount (price)
+3. category
+  - expense: Food, Transpo, Rent, Unexpected, etc
+  - earning: Salary, Bonus, Sideline, others
+4. (optional) description
+
+**Organize with multiple books.** With multiple (bank) accounts, you can create a record book for each account. With manual recording of your transactions using this organizational scheme, you will have a very good knowledge on how money flows in your accounts.
+
+**Save *locally* or sync *online*.** Using remotestorage, your record books are save locally to your device. If you want to work on multiple devices, you can sync your books online using the remotestorage sync feature.
+
