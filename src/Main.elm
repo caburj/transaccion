@@ -139,43 +139,32 @@ update msg model =
 
         SelectBook bookId ->
             let
+                ( newModel, cmds ) =
+                    model ! [ getTimeNow ]
+
                 cBook =
-                    Maybe.withDefault (dummyBook "dummy") (Dict.get bookId model.books)
+                    Maybe.withDefault (dummyBook "dummy") (Dict.get bookId newModel.books)
 
                 category =
-                    case model.selectedCategoryType of
+                    case newModel.selectedCategoryType of
                         Expense ->
                             Maybe.withDefault "Uncategorized" (List.head cBook.expenseCategories)
 
                         Earning ->
                             Maybe.withDefault "Uncategorized" (List.head cBook.earningCategories)
 
-                listCreated =
-                    cBook.transactions
-                        |> Dict.values
-                        |> List.map .created
-                        |> List.map Date.fromTime
-
-                listYear =
-                    listCreated
-                        |> List.map Date.year
-                        |> unique
-
-                listMonth =
-                    listCreated
-                        |> List.map Date.month
-                        |> List.map toString
-                        |> unique
-                        |> List.map Helper.monthFromString
+                year =
+                    newModel.currentTime
+                        |> Date.fromTime
+                        |> Date.year
 
                 month =
-                    Maybe.withDefault Jan (List.head listMonth)
-
-                year =
-                    Maybe.withDefault 0 (List.head listYear)
+                    newModel.currentTime
+                        |> Date.fromTime
+                        |> Date.month
             in
             update (ChangeTransactionsDisplay All)
-                { model
+                { newModel
                     | selectedCategory = category
                     , selectedMonth = month
                     , selectedYear = year
@@ -244,7 +233,7 @@ update msg model =
             { newModel | books = newBooks, currentBook = Just editedBook }
                 ! [ saveBook (encode 2 (encodeBook editedBook))
                   , cmds
-                  , focusTo "tr-input-price"
+                  , focusTo "tr-input-category-Expense"
                   ]
 
         DeleteEarningCategory bookId name ->
@@ -265,7 +254,7 @@ update msg model =
             { newModel | books = newBooks, currentBook = Just editedBook }
                 ! [ saveBook (encode 2 (encodeBook editedBook))
                   , cmds
-                  , focusTo "tr-input-price"
+                  , focusTo "tr-input-category-Earning"
                   ]
 
         InputCategory categoryType name ->
@@ -975,9 +964,9 @@ deleteBookConfirmation maybeBook isActive =
                     , h1 [ class "title is-5", align "center" ] [ text bookName ]
                     ]
                 ]
-            , footer [ class "modal-card-foot" ]
-                [ button [ class "button is-danger", onClick (DeleteBook book.id) ] [ text "Delete" ]
-                , button [ class "button", onClick CancelDeleteBook ] [ text "Cancel" ]
+            , footer [ class "modal-card-foot", style [ ( "justify-content", "flex-end" ) ] ]
+                [ button [ class "button is-pulled-right", onClick CancelDeleteBook ] [ text "Cancel" ]
+                , button [ class "button is-danger is-pulled-right", onClick (DeleteBook book.id) ] [ text "Delete" ]
                 ]
             ]
         ]
@@ -1007,6 +996,8 @@ transactionsTable model =
     let
         transactions =
             model.transactionsToDisplay
+                |> List.sortBy .created
+                |> List.reverse
 
         currentBook =
             Maybe.withDefault (dummyBook "dummy") model.currentBook
@@ -1034,18 +1025,18 @@ transactionsTable model =
             div [ class "column" ]
                 [ div [ class "columns" ]
                     [ div [ class "column is-3" ]
-                        [ h1 [ class "subtitle" ] [ text "List of transactions" ] ]
+                        [ h1 [ class "subtitle" ] [ text "transactions list" ] ]
                     , div [ class "column" ]
                         [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
                     ]
-                , text "You have no transactions to display :("
+                , div [ class "content" ] [ p [] [ text "You have no transactions to display :(" ] ]
                 ]
 
         _ ->
             div [ class "column" ]
                 [ div [ class "columns" ]
                     [ div [ class "column is-3" ]
-                        [ h1 [ class "subtitle" ] [ text "List of transactions" ] ]
+                        [ h1 [ class "subtitle" ] [ text "transactions list" ] ]
                     , div [ class "column" ]
                         [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
                     ]
