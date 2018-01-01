@@ -185,7 +185,7 @@ update msg model =
                 newBooks =
                     Dict.remove bookId model.books
             in
-            { model | books = newBooks, confirmDeleteBook = False } ! [ deleteBook bookId ]
+            { model | books = newBooks, confirmDeleteBook = False, selectedBookToDelete = Nothing } ! [ deleteBook bookId ]
 
         CancelDeleteBook ->
             { model | confirmDeleteBook = False, selectedBookToDelete = Nothing } ! []
@@ -979,6 +979,14 @@ transactionInputField model =
                     ( .earningCategories (Maybe.withDefault (dummyBook "dummy") model.currentBook)
                     , "is-link"
                     )
+
+        inputPriceClass =
+            case String.toFloat model.inputPrice of
+                Ok _ ->
+                    "input is-success"
+
+                Err _ ->
+                    "input is-danger"
     in
     Html.form [ class "field", onSubmit AddTransaction, onEscape CancelTransactionInput ]
         [ div [ class "field has-addons" ]
@@ -988,7 +996,7 @@ transactionInputField model =
                 ]
             , p [ class "control has-icons-left" ]
                 [ input
-                    [ class "input"
+                    [ class inputPriceClass
                     , id "tr-input-price"
                     , type_ "text"
                     , placeholder "price"
