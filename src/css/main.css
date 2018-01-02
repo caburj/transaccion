@@ -28,12 +28,41 @@ nav.navbar {
   margin-right: 20px;
 }
 
-.tr-price {
+.tr-expense {
   color: red;
 }
 
 .tr-earning {
   color: blue;
+}
+
+p.tr-day {
+  font-size: 1.3em;
+  /* color: grey; */
+}
+
+p.tr-month {
+  font-size: 0.9em;
+  color: grey;
+}
+
+span.tr-expense {
+  font-size: 1.3em;
+}
+
+span.tr-earning {
+  font-size: 1.3em;
+}
+
+.tr-description {
+  /* font-size: 1em; */
+  color: darkgrey;
+}
+
+.tr-delete {
+  /* display: inline-block; */
+  vertical-align: middle;
+  /* line-height: normal; */
 }
 
 html,

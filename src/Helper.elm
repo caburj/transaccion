@@ -1,6 +1,7 @@
 module Helper exposing (..)
 
 import Date exposing (Date, Month(..))
+import Round
 
 
 -- import Date.Extra as Date
@@ -44,3 +45,8 @@ monthFromString monthString =
 
         _ ->
             Dec
+
+
+toTwoDecimal : Float -> String
+toTwoDecimal =
+    Round.round 2

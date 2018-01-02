@@ -18,6 +18,7 @@ import Json_ exposing (decodeBooks, encodeBook, encodeBooks)
 import List.Extra exposing (unique)
 import Model exposing (..)
 import Navigation as Nav
+import Round
 import Task
 import Time exposing (Time)
 import UrlParser as Url exposing ((</>))
@@ -686,11 +687,12 @@ render model =
                                         [ h1 [ class "title is-3" ] [ text book.name ] ]
                                     , div [ class "column" ] [ transactionInputField model ]
                                     ]
-                                , hr [] []
+
+                                -- , hr [] []
                                 , transactionsTable model
                                 ]
                             , div [ class "column is-one-third" ]
-                                [ summaryBoxOfDisplayed model.transactionsToDisplay
+                                [ summaryBoxByCategory model.transactionsToDisplay
                                 , chartBox model.transactionsToDisplay
                                 , categoriesBox book Expense DeleteExpenseCategory
                                 , categoriesBox book Earning DeleteEarningCategory
@@ -753,101 +755,112 @@ categoriesBox book category msg =
         ]
 
 
-summaryBoxOfDisplayed : List Transaction -> Html Msg
-summaryBoxOfDisplayed transactions =
-    div [ class "box" ]
-        [ h1 [ class "subtitle is-5" ] [ text "Summary" ]
+summaryBoxByCategory : List Transaction -> Html Msg
+summaryBoxByCategory transactions =
+    let
+        expenses =
+            transactions
+                |> List.filter (\t -> t.price < 0)
+                |> List.map (\e -> { e | price = -e.price })
 
-        -- , hr [] []
-        , summaryTable transactions
+        earnings =
+            transactions
+                |> List.filter (\t -> t.price >= 0)
+    in
+    div [ class "box" ]
+        [ div [ class "columns" ]
+            [ div [ class "column" ] [ h1 [ class "subtitle is-5" ] [ strong [] [ text "Summary" ] ] ]
+            , div [ class "column is-pulled-right" ] [ currentBalance transactions ]
+            ]
+        , summaryTable Expense expenses
+        , summaryTable Earning earnings
         ]
 
 
-summaryTable : List Transaction -> Html Msg
-summaryTable transactions =
-    summaryList transactions
-
-
-summaryList : List Transaction -> Html Msg
-summaryList transactions =
+currentBalance : List Transaction -> Html Msg
+currentBalance transactions =
     let
-        rows =
+        total =
             transactions
-                |> summarize
-                |> List.sortBy .category
-                |> List.map summaryRow
+                |> List.map .price
+                |> List.sum
+
+        ( theClass, theText ) =
+            if total < 0 then
+                ( "tr-expense", "(" ++ Round.round 2 -total ++ ")" )
+            else
+                ( "tr-earning", Round.round 2 total )
+    in
+    p [ class "subtitle is-4", align "right" ]
+        [ span [] [ text "" ]
+        , span [ class theClass ] [ text theText ]
+        ]
+
+
+summaryTable : CategoryType -> List Transaction -> Html Msg
+summaryTable categoryType transactions =
+    let
+        categories =
+            transactions
+                |> List.map .category
+                |> unique
+
+        totalPrices =
+            categories
+                |> List.map (calcTotalPrice transactions)
+
+        overallPrice =
+            totalPrices
+                |> List.sum
+                |> Round.round 2
+
+        ( priceHeadingText, priceHeadingClass ) =
+            case categoryType of
+                Expense ->
+                    ( "(" ++ overallPrice ++ ")", "tr-expense" )
+
+                Earning ->
+                    ( overallPrice, "tr-earning" )
 
         summaryHeader =
             thead []
                 [ tr []
-                    [ th [] [ text "category" ]
-                    , th [] [ text "total price" ]
-                    , th [] [ text "in chart" ]
+                    [ th [] [ text (toString categoryType ++ "s") ]
+                    , th [] [ p [ class priceHeadingClass, align "right" ] [ text priceHeadingText ] ]
                     ]
                 ]
+
+        rows =
+            List.map2 (summaryRow categoryType) categories totalPrices
+
+        theTable =
+            case List.length rows of
+                0 ->
+                    div [] [ text ("No inputted " ++ String.toLower (toString categoryType ++ "s") ++ ".") ]
+
+                _ ->
+                    summaryHeader
+                        :: [ tbody [] rows ]
+                        |> table [ class "table is-hoverable is-fullwidth" ]
     in
-    case List.length rows of
-        0 ->
-            div [] [ text "No inputted transactions." ]
-
-        _ ->
-            summaryHeader
-                :: [ tbody [] rows ]
-                |> table [ class "table is-hoverable is-fullwidth" ]
+    div [ class "box" ] [ theTable ]
 
 
-summaryRow : SummaryByCategory -> Html Msg
-summaryRow categorySummary =
+summaryRow : CategoryType -> String -> Float -> Html Msg
+summaryRow categoryType category total =
     let
-        ( priceText, transactionType ) =
-            if categorySummary.totalPrice < 0 then
-                ( "(" ++ toString -categorySummary.totalPrice ++ ")", Expense )
-            else
-                ( toString categorySummary.totalPrice, Earning )
-
-        priceClass =
-            case transactionType of
+        ( priceText, priceClass ) =
+            case categoryType of
                 Expense ->
-                    "tr-price"
+                    ( "(" ++ toString total ++ ")", "tr-expense" )
 
                 Earning ->
-                    "tr-earning"
+                    ( toString total, "tr-earning" )
     in
     tr []
-        [ td [] [ text categorySummary.category ]
-        , td [ class priceClass ] [ text priceText ]
-        , td []
-            [ input
-                [ type_ "checkbox"
-
-                -- , onClick (ToggleChartInclude categorySummary)
-                , id categorySummary.category
-                , checked categorySummary.includedInChart
-                ]
-                []
-            , label [ for categorySummary.category ] []
-            ]
+        [ td [] [ text category ]
+        , td [] [ p [ class priceClass, align "right" ] [ text priceText ] ]
         ]
-
-
-summarize : List Transaction -> List SummaryByCategory
-summarize transactions =
-    case transactions of
-        [] ->
-            []
-
-        _ ->
-            let
-                categories =
-                    transactions
-                        |> List.map (\transaction -> transaction.category)
-                        |> unique
-
-                totalPrices =
-                    categories
-                        |> List.map (calcTotalPrice transactions)
-            in
-            List.map2 (SummaryByCategory True) categories totalPrices
 
 
 calcTotalPrice : List Transaction -> String -> Float
@@ -876,7 +889,7 @@ chartBox transactions =
                     chartExpense expenses
     in
     div [ class "box" ]
-        [ h1 [ class "subtitle is-5" ] [ text "Expense Chart" ]
+        [ h1 [ class "subtitle is-5" ] [ strong [] [ text "Expense Chart" ] ]
         , div [] [ toDisplay ]
         ]
 
@@ -1052,79 +1065,95 @@ transactionsTable model =
                 |> List.map Date.month
                 |> List.map toString
                 |> unique
-    in
-    case transactions of
-        [] ->
-            div [ class "column" ]
-                [ div [ class "columns" ]
-                    [ div [ class "column is-3" ]
-                        [ h1 [ class "subtitle" ] [ text "transactions list" ] ]
-                    , div [ class "column" ]
-                        [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
-                    ]
-                , div [ class "content" ] [ p [] [ text "You have no transactions to display :(" ] ]
-                ]
 
-        _ ->
-            div [ class "column" ]
-                [ div [ class "columns" ]
-                    [ div [ class "column is-3" ]
-                        [ h1 [ class "subtitle" ] [ text "transactions list" ] ]
-                    , div [ class "column" ]
-                        [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
-                    ]
-                , table [ class "table is-hoverable is-fullwidth" ]
-                    [ thead []
-                        [ tr []
-                            [ th [] [ text "date" ]
-                            , th [] [ text "price" ]
-                            , th [] [ text "category" ]
-                            , th [] [ text "description" ]
-                            , th [] []
+        theTable =
+            case transactions of
+                [] ->
+                    div [ class "column" ]
+                        [ div [ class "columns" ]
+                            [ div [ class "column is-3" ]
+                                [ h1 [ class "subtitle" ] [ strong [] [ text "Transactions" ] ] ]
+                            , div [ class "column" ]
+                                [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
+                            ]
+                        , div [ class "content" ] [ p [] [ text "You have no transactions to display :(" ] ]
+                        ]
+
+                _ ->
+                    div [ class "column" ]
+                        [ div [ class "columns" ]
+                            [ div [ class "column is-3" ]
+                                [ h1 [ class "subtitle" ] [ strong [] [ text "Transactions" ] ] ]
+                            , div [ class "column is-pulled-right" ]
+                                [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
+                            ]
+
+                        -- , hr [] []
+                        , table [ class "table is-hoverable is-fullwidth" ]
+                            [ tbody []
+                                (transactions
+                                    |> List.map listTransaction
+                                )
                             ]
                         ]
-                    , tbody []
-                        (transactions
-                            |> List.map listTransaction
-                        )
-                    ]
-                ]
+    in
+    div [ class "box" ] [ theTable ]
 
 
 listTransaction : Transaction -> Html Msg
 listTransaction transaction =
     let
-        date =
+        month =
             transaction.created
                 |> Date.fromTime
-                |> Date.toFormattedString "d-MMM"
+                |> Date.toFormattedString "MMM"
 
-        ( price, transactionType ) =
+        day =
+            transaction.created
+                |> Date.fromTime
+                |> Date.toFormattedString "dd"
+
+        ( priceText, transactionType ) =
             if transaction.price < 0 then
-                ( "(" ++ toString -transaction.price ++ ")", Expense )
+                ( "(" ++ Helper.toTwoDecimal -transaction.price ++ ")", Expense )
             else
-                ( toString transaction.price, Earning )
+                ( Helper.toTwoDecimal transaction.price, Earning )
 
         category =
             transaction.category
 
         description =
-            transaction.description
+            case transaction.description of
+                "" ->
+                    "(no description)"
+
+                _ ->
+                    transaction.description
 
         priceClass =
             case transactionType of
                 Expense ->
-                    "tr-price"
+                    "tr-expense"
 
                 Earning ->
                     "tr-earning"
     in
     tr []
-        [ td [] [ text date ]
-        , td [ class priceClass ] [ text price ]
-        , td [] [ text category ]
-        , td [] [ text description ]
-        , td [] [ button [ class "delete is-medium", onClick (DeleteTransaction transaction.id) ] [] ]
+        [ td []
+            [ p [ class "tr-day", align "center" ] [ text day ]
+            , p [ class "tr-month", align "center" ] [ text month ]
+            ]
+        , td []
+            [ p []
+                [ span [ class priceClass, align "right" ] [ text priceText ]
+                , span [ class "tr-separator" ] [ text " | " ]
+                , span [ class "tr-category" ] [ text category ]
+                ]
+            , p [ class "tr-description" ] [ text description ]
+            ]
+        , td [ attribute "valign" "middle" ]
+            [ button [ class "delete is-medium", onClick (DeleteTransaction transaction.id) ] []
+            ]
         ]
 
 

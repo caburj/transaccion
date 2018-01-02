@@ -63,13 +63,6 @@ type alias Id =
     String
 
 
-type alias SummaryByCategory =
-    { includedInChart : Bool
-    , category : String
-    , totalPrice : Float
-    }
-
-
 type TransactionsDisplay
     = All
     | ByYear Int
