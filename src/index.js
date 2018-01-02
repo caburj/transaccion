@@ -50,18 +50,22 @@ let startElm = (function(startingBooks) {
     }
   });
 
-  rs.on('disconnected', function () {
-    console.log("Disconnected. Reloading page...");
-    location.reload();
-  });
-
   registerServiceWorker();
-})
+});
 
 rs.on('ready', function () {
-  console.log("rs ready.")
+  console.log("rs ready.");
   rs[booksStorage].list()
     .then(listing => {
       startElm(JSON.stringify(listing));
     });
+});
+
+rs.on('disconnected', function () {
+  console.log("rs disconnected.");
+  location.reload();
+});
+
+rs.on('connected', function () {
+  console.log("rs connected.");
 });

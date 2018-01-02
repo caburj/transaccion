@@ -50,6 +50,7 @@
   - is-danger if expense, is-link if earning
   - remove negative in display
 - options to display transactions by month, year and all
+- fix page not found error
 
 
 ## Notes
