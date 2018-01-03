@@ -768,9 +768,10 @@ summaryBoxByCategory transactions =
                 |> List.filter (\t -> t.price >= 0)
     in
     div [ class "box" ]
-        [ div [ class "columns" ]
-            [ div [ class "column" ] [ h1 [ class "subtitle is-5" ] [ strong [] [ text "Summary" ] ] ]
-            , div [ class "column is-pulled-right" ] [ currentBalance transactions ]
+        [ div [ class "content" ]
+            [ h1 [ class "subtitle is-5", style [ ( "float", "left" ) ] ] [ strong [] [ text "Summary" ] ]
+            , p [ style [ ( "float", "right" ) ] ] [ currentBalance transactions ]
+            , br [] []
             ]
         , summaryTable Expense expenses
         , summaryTable Earning earnings
@@ -787,14 +788,11 @@ currentBalance transactions =
 
         ( theClass, theText ) =
             if total < 0 then
-                ( "tr-expense", "(" ++ Round.round 2 -total ++ ")" )
+                ( "tr-expense tr-balance", "(" ++ Round.round 2 -total ++ ")" )
             else
-                ( "tr-earning", Round.round 2 total )
+                ( "tr-earning tr-balance", Round.round 2 total )
     in
-    p [ class "subtitle is-4", align "right" ]
-        [ span [] [ text "" ]
-        , span [ class theClass ] [ text theText ]
-        ]
+    span [ class theClass ] [ text theText ]
 
 
 summaryTable : CategoryType -> List Transaction -> Html Msg
@@ -966,9 +964,9 @@ bookCard book =
                     ]
                 ]
             , footer [ class "card-footer" ]
-                [ a [ class "card-footer-item", onClick (ConfirmDeleteBook (Just book)) ] [ text "Delete" ]
+                [ a [ class "card-footer-item tr-book-delete", onClick (ConfirmDeleteBook (Just book)) ] [ text "Delete", icon "fa-remove" "" ]
                 , div [ class "card-footer-item", onClick (SelectBook book.id) ]
-                    [ a [ onClick (NewUrl ("/books/" ++ book.id)) ] [ text "Open" ] ]
+                    [ a [ onClick (NewUrl ("/books/" ++ book.id)) ] [ text "Open ", icon "fa-folder-open" "" ] ]
                 ]
             ]
         ]
@@ -1139,19 +1137,19 @@ listTransaction transaction =
                     "tr-earning"
     in
     tr []
-        [ td []
+        [ td [ class "tr-center" ]
             [ p [ class "tr-day", align "center" ] [ text day ]
             , p [ class "tr-month", align "center" ] [ text month ]
             ]
-        , td []
+        , td [ class "tr-left" ]
             [ p []
-                [ span [ class priceClass, align "right" ] [ text priceText ]
+                [ span [ class priceClass ] [ text priceText ]
                 , span [ class "tr-separator" ] [ text " | " ]
                 , span [ class "tr-category" ] [ text category ]
                 ]
             , p [ class "tr-description" ] [ text description ]
             ]
-        , td [ attribute "valign" "middle" ]
+        , td [ class "tr-right" ]
             [ button [ class "delete is-medium", onClick (DeleteTransaction transaction.id) ] []
             ]
         ]
@@ -1164,23 +1162,28 @@ transactionInputField model =
             case model.selectedCategoryType of
                 Expense ->
                     ( .expenseCategories (Maybe.withDefault (dummyBook "dummy") model.currentBook)
-                    , "is-dark"
+                    , "is-danger is-medium"
                     )
 
                 Earning ->
                     ( .earningCategories (Maybe.withDefault (dummyBook "dummy") model.currentBook)
-                    , "is-link"
+                    , "is-link is-medium"
                     )
 
         inputPriceClass =
             case String.toFloat model.inputPrice of
                 Ok _ ->
-                    "input is-success"
+                    case model.selectedCategoryType of
+                        Expense ->
+                            "input is-danger is-medium"
+
+                        Earning ->
+                            "input is-link is-medium"
 
                 Err _ ->
-                    "input is-danger"
+                    "input is-warning is-medium"
     in
-    Html.form [ class "field", onSubmit AddTransaction, onEscape CancelTransactionInput ]
+    Html.form [ class "field tr-input-field", onSubmit AddTransaction, onEscape CancelTransactionInput ]
         [ div [ class "field has-addons" ]
             [ p [ class "control" ]
                 [ a [ class ("button " ++ categoryTypeColor), onClick ChangeCategoryType ]
@@ -1191,12 +1194,12 @@ transactionInputField model =
                     [ class inputPriceClass
                     , id "tr-input-price"
                     , type_ "text"
-                    , placeholder "price"
                     , maxlength 15
                     , value model.inputPrice
                     , onInput InputPrice
                     , style [ ( "width", "100px" ) ]
 
+                    -- , placeholder "price"
                     -- , attribute "min" "0"
                     -- , attribute "step" "0.01"
                     ]
@@ -1204,14 +1207,14 @@ transactionInputField model =
                 , icon "fa-money" "is-left"
                 ]
             , div [ class "control" ]
-                [ div [ class "select", onInput ChangeCategory ]
+                [ div [ class "select is-medium", onInput ChangeCategory ]
                     [ select []
                         (List.map (nameToOptionSelected model.selectedCategory) categories)
                     ]
                 ]
             , div [ class "control" ]
                 [ input
-                    [ class "input"
+                    [ class "input is-medium"
                     , type_ "text"
                     , placeholder "description"
                     , maxlength 150
@@ -1223,9 +1226,9 @@ transactionInputField model =
                     []
                 ]
             , div [ class "control" ]
-                [ button [ class "button is-dark", type_ "submit" ] [ icon "fa-plus" "" ] ]
+                [ button [ class "button is-dark is-medium", type_ "submit" ] [ icon "fa-plus" "" ] ]
             , div [ class "control" ]
-                [ button [ class "button is-danger", onClick CancelTransactionInput ] [ icon "fa-close" "" ] ]
+                [ button [ class "button is-danger is-medium", onClick CancelTransactionInput ] [ icon "fa-close" "" ] ]
             ]
         ]
 
