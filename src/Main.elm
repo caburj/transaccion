@@ -1158,16 +1158,20 @@ listTransaction transaction =
 transactionInputField : Model -> Html Msg
 transactionInputField model =
     let
-        ( categories, categoryTypeColor ) =
+        ( categories, categoryTypeColor, categoryTypeTooltip, inputPriceTooltip ) =
             case model.selectedCategoryType of
                 Expense ->
                     ( .expenseCategories (Maybe.withDefault (dummyBook "dummy") model.currentBook)
                     , "is-danger is-medium"
+                    , "Click to change to Earning."
+                    , "How much did you spend?"
                     )
 
                 Earning ->
                     ( .earningCategories (Maybe.withDefault (dummyBook "dummy") model.currentBook)
                     , "is-link is-medium"
+                    , "Click to change to Expense."
+                    , "How much did you earn?"
                     )
 
         inputPriceClass =
@@ -1185,11 +1189,20 @@ transactionInputField model =
     in
     Html.form [ class "field tr-input-field", onSubmit AddTransaction, onEscape CancelTransactionInput ]
         [ div [ class "field has-addons" ]
-            [ p [ class "control" ]
-                [ a [ class ("button " ++ categoryTypeColor), onClick ChangeCategoryType ]
+            [ p
+                [ class "control tooltip"
+                , attribute "data-tooltip" categoryTypeTooltip
+                ]
+                [ a
+                    [ class ("button " ++ categoryTypeColor)
+                    , onClick ChangeCategoryType
+                    ]
                     [ text (toString model.selectedCategoryType) ]
                 ]
-            , p [ class "control has-icons-left" ]
+            , p
+                [ class "control has-icons-left tooltip"
+                , attribute "data-tooltip" inputPriceTooltip
+                ]
                 [ input
                     [ class inputPriceClass
                     , id "tr-input-price"
@@ -1206,13 +1219,19 @@ transactionInputField model =
                     []
                 , icon "fa-money" "is-left"
                 ]
-            , div [ class "control" ]
+            , div
+                [ class "control tooltip"
+                , attribute "data-tooltip" "Add more categories in the lower right boxes."
+                ]
                 [ div [ class "select is-medium", onInput ChangeCategory ]
                     [ select []
                         (List.map (nameToOptionSelected model.selectedCategory) categories)
                     ]
                 ]
-            , div [ class "control" ]
+            , div
+                [ class "control tooltip is-tooltip-multiline"
+                , attribute "data-tooltip" "Perhaps tell me about the product name, quantity, brand and shop, if not too much to ask."
+                ]
                 [ input
                     [ class "input is-medium"
                     , type_ "text"
@@ -1225,10 +1244,26 @@ transactionInputField model =
                     ]
                     []
                 ]
-            , div [ class "control" ]
-                [ button [ class "button is-dark is-medium", type_ "submit" ] [ icon "fa-plus" "" ] ]
-            , div [ class "control" ]
-                [ button [ class "button is-danger is-medium", onClick CancelTransactionInput ] [ icon "fa-close" "" ] ]
+            , div
+                [ class "control tooltip"
+                , attribute "data-tooltip" "Press <enter> to confirm transaction."
+                ]
+                [ button
+                    [ class "button is-dark is-medium"
+                    , type_ "submit"
+                    ]
+                    [ icon "fa-plus" "" ]
+                ]
+            , div
+                [ class "control tooltip"
+                , attribute "data-tooltip" "Press <esc> to cancel."
+                ]
+                [ button
+                    [ class "button is-danger is-medium"
+                    , onClick CancelTransactionInput
+                    ]
+                    [ icon "fa-close" "" ]
+                ]
             ]
         ]
 

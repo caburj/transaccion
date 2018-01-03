@@ -1,5 +1,6 @@
 import 'bulma/css/bulma.css';
 import 'bulma-extensions/bulma-checkradio/bulma-checkradio.min.css';
+import 'bulma-extensions/bulma-tooltip/bulma-tooltip.min.css';
 import 'font-awesome/css/font-awesome.min.css';
 import RemoteStorage from 'remotestoragejs';
 import Widget from 'remotestorage-widget';

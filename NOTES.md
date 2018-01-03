@@ -5,22 +5,9 @@
 
 ## Currently working
 
-- use better blue and better red for color of prices
-- fix the location of the current balance
-- fix the location of the delete button
 - summary as part of model
-- summary by month
+- summary of ALL transactions by month
   - month | total expense | total earning | balance
-
-## TODO
-
-- put tooltips in the input fields
-- better summary
-  - checkbox for including/excluding expenses/earnings
-- pages for monthly transactions
-  - use bulma pagination
-- github-like timeline for transactions
-  - put below categories
 - the homepage
   - record your transactions to properly monitor your money
   - work with privacy using your own 5apps account
@@ -31,6 +18,14 @@
   - save locally or sync online
 - documentation
 - post to twitter and facebook with blog-entry
+- credits to the used open-sourced apps
+
+## TODO
+
+- pages for monthly transactions
+  - use bulma pagination
+- github-like timeline for transactions
+  - put below categories
 - save to csv
 - User can defined his own defaultCategories.
 
@@ -55,6 +50,10 @@
 - summary of displayed transactions by category
   - separate expenses from earnings
 - chart above categories
+- use better blue and better red for color of prices
+- fix the location of the current balance
+- fix the location of the delete button
+- put tooltips in the input fields
 
 
 ## Notes
