@@ -553,6 +553,18 @@ onEscape msg =
     on "keydown" (Json.Decode.andThen isEscape keyCode)
 
 
+onTab : Msg -> Attribute Msg
+onTab msg =
+    let
+        isTab code =
+            if code == 9 then
+                Json.Decode.succeed msg
+            else
+                Json.Decode.fail "not tab"
+    in
+    on "keydown" (Json.Decode.andThen isTab keyCode)
+
+
 salt : Hashids.Context
 salt =
     hashidsMinimum "ako ay may lobo" 5
@@ -850,10 +862,10 @@ summaryRow categoryType category total =
         ( priceText, priceClass ) =
             case categoryType of
                 Expense ->
-                    ( "(" ++ toString total ++ ")", "tr-expense" )
+                    ( "(" ++ Helper.toTwoDecimal total ++ ")", "tr-expense" )
 
                 Earning ->
-                    ( toString total, "tr-earning" )
+                    ( Helper.toTwoDecimal total, "tr-earning" )
     in
     tr []
         [ td [] [ text category ]
@@ -1020,7 +1032,10 @@ addBookForm : Model -> Html Msg
 addBookForm model =
     Html.form [ class "column is-3", onSubmit (AddBook model.inputBookName) ]
         [ div [ class "field has-addons" ]
-            [ p [ class "control has-icons-left" ]
+            [ p
+                [ class "control has-icons-left tooltip is-tooltip-multiline"
+                , attribute "data-tooltip" "Your transactions are organized by 'record book' or 'book'."
+                ]
                 [ input [ class "input is-medium", type_ "text", placeholder "add new book", onInput InputBookName ] []
                 , span [ class "icon is-left" ]
                     [ i [ class "fa fa-book" ] [] ]
@@ -1239,6 +1254,7 @@ transactionInputField model =
                     , maxlength 150
                     , value model.inputDescription
                     , onInput InputDescription
+                    , onTab (FocusOn "tr-input-price")
 
                     -- , style [ ( "width", "200px" ) ]
                     ]
