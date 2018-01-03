@@ -5,15 +5,16 @@
 
 ## Currently working
 
-- summary of displayed transactions by category
-  - separate expenses from earnings
+- use better blue and better red for color of prices
+- fix the location of the current balance
+- fix the location of the delete button
 - summary as part of model
 - summary by month
   - month | total expense | total earning | balance
-- chart above categories
 
 ## TODO
 
+- put tooltips in the input fields
 - better summary
   - checkbox for including/excluding expenses/earnings
 - pages for monthly transactions
@@ -51,6 +52,9 @@
   - remove negative in display
 - options to display transactions by month, year and all
 - fix page not found error
+- summary of displayed transactions by category
+  - separate expenses from earnings
+- chart above categories
 
 
 ## Notes
