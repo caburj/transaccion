@@ -19,6 +19,7 @@
 - documentation
 - post to twitter and facebook with blog-entry
 - credits to the used open-sourced apps
+- LOGO!!!
 
 ## TODO
 
@@ -56,7 +57,16 @@
 - put tooltips in the input fields
 
 
-## Notes
+## Issues
+
+### List
+- add currency
+- visibility of earning and expense options
+
+### Fixed
+- tab press at descriptionInput to focus on priceInput
+
+## Important Notes
 
 1. put assets in `public` folder.
 1. access public folder in the `src` code using `%PUBLIC_URL%`

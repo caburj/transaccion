@@ -9,7 +9,7 @@ yet another expense manager app
 
 ## Description
 
-This app has been inspired by our desire to maximize our savings.
+My wife (Jean Katrine Boyles) and I wanted to maximize our savings. This inspired us to create this app, this simple and easy to use expense manager app.
 
 **Record your transactions.** It is easy to record any transaction. All it needs are the following:
 - type (expense or earning)
