@@ -1200,7 +1200,7 @@ transactionsTable model =
                                 [ input
                                     [ class "input"
                                     , type_ "text"
-                                    , placeholder "search category | description"
+                                    , placeholder "filter displayed by category | description"
                                     , onInput InputQuery
                                     , onTab (FocusOn "tr-input-price")
                                     ]
