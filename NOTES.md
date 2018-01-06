@@ -22,6 +22,7 @@
 
 ## TODO
 
+- 100% RESPONSIVE!!
 - add percentage in the summary
 - transactionsToDisplay defaults to current month
 - how about previous 30 days of view?

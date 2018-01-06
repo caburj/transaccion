@@ -6,6 +6,7 @@ import RemoteStorage from 'remotestoragejs';
 import Widget from 'remotestorage-widget';
 
 import { Main } from './Main.elm';
+import { Footer } from './Footer.elm'
 import './css/main.css';
 
 import registerServiceWorker from './js/registerServiceWorker';
@@ -23,6 +24,7 @@ rs[booksStorage].init();
 let startElm = (function(startingBooks) {
 
   const elm = Main.embed(document.getElementById('root'), startingBooks);
+  const footer = Footer.embed(document.getElementById('footer'));
 
   elm.ports.deleteBook.subscribe(bookId => {
     rs[booksStorage].remove(bookId)

@@ -688,6 +688,8 @@ render model =
                         ++ [ addBookForm model ]
                     )
                 , deleteBookConfirmation model.selectedBookToDelete model.confirmDeleteBook
+
+                -- , a [ class "float" ] [ i [ class "fa fa-plus my-float" ] [] ]
                 ]
 
         BookR id ->
@@ -1200,7 +1202,7 @@ transactionsTable model =
                                 [ input
                                     [ class "input"
                                     , type_ "text"
-                                    , placeholder "filter displayed by category | description"
+                                    , placeholder "filter the displayed transactions by category || description"
                                     , onInput InputQuery
                                     , onTab (FocusOn "tr-input-price")
                                     ]
@@ -1224,7 +1226,7 @@ transactionsTable model =
                                 [ input
                                     [ class "input"
                                     , type_ "text"
-                                    , placeholder "search category | description"
+                                    , placeholder "filter the displayed transactions by category || description"
                                     , onInput InputQuery
                                     , onTab (FocusOn "tr-input-price")
                                     ]
