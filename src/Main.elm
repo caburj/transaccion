@@ -751,7 +751,7 @@ categoriesBox book category msg =
     let
         ( color, categories, name ) =
             if category == Expense then
-                ( "is-link", book.expenseCategories, "Expense Categories" )
+                ( "is-danger", book.expenseCategories, "Expense Categories" )
             else
                 ( "is-link", book.earningCategories, "Earning Categories" )
     in
@@ -1005,20 +1005,36 @@ bookCard currentTime book =
                 |> List.filter (\price -> price >= 0)
                 |> List.sum
 
+        ( balance, balanceClass ) =
+            let
+                bal =
+                    totalEarnings - totalExpenses
+
+                cls =
+                    if bal < 0 then
+                        "tr-expense"
+                    else
+                        "tr-earning"
+            in
+            ( abs bal, cls )
+
         ( percent, progressClass ) =
             let
                 ratio =
                     totalExpenses / totalEarnings
             in
             if ratio < 1 then
-                ( ratio * 100, "progress is-medium is-link" )
+                ( ratio * 100, "is-link" )
             else
-                ( 100, "progress id-medium is-danger" )
+                ( 100, "is-danger" )
 
         percentString =
             percent
                 |> round
                 |> toString
+
+        isHidden =
+            totalEarnings == 0 && totalExpenses == 0
     in
     div [ class "column is-3" ]
         [ div [ class "card" ]
@@ -1031,15 +1047,19 @@ bookCard currentTime book =
                 ]
             , div [ class "card-content" ]
                 [ div [ class "content" ]
-                    [ text "Recent month's expense/earning"
+                    [ text "Recent month's balance: "
+                    , strong [ class balanceClass ] [ text (Helper.toTwoDecimal balance) ]
                     , br [] []
-                    , br [] []
-                    , node "progress"
-                        [ class progressClass
-                        , attribute "value" percentString
-                        , attribute "max" "100"
+                    , div [ hidden isHidden ]
+                        [ br [] []
+                        , node "progress"
+                            [ class ("progress is-medium " ++ progressClass)
+                            , attribute "value" percentString
+                            , attribute "max" "100"
+                            ]
+                            []
                         ]
-                        []
+                    , br [ hidden isHidden ] []
                     , node "time" [] [ text ("Last Edited: " ++ lastEdited) ]
                     ]
                 ]
@@ -1185,7 +1205,7 @@ transactionsTable model =
                                     , onTab (FocusOn "tr-input-price")
                                     ]
                                     []
-                                , icon "fa-search" ""
+                                , icon "fa-search" "is-left"
                                 ]
                             ]
                         , div [ class "content" ] [ p [] [ text "(Empty table. Just like your family table during Christmas and New Year's Eve. JK ^^, )" ] ]
@@ -1352,7 +1372,7 @@ transactionInputField model =
                 ]
             , div
                 [ class "control tooltip"
-                , attribute "data-tooltip" "Add more categories in the lower right boxes."
+                , attribute "data-tooltip" "Edit the categories in the lower right boxes."
                 ]
                 [ div [ class "select is-medium", onInput ChangeCategory ]
                     [ select []
