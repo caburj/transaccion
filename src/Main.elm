@@ -51,7 +51,7 @@ init : Maybe String -> Nav.Location -> ( Model, Cmd Msg )
 init maybeBooks loc =
     case maybeBooks of
         Nothing ->
-            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All ! [ getTimeNow ]
+            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All "" ! [ getTimeNow ]
 
         Just strBook ->
             let
@@ -66,7 +66,7 @@ init maybeBooks loc =
                         Err _ ->
                             initBooks
             in
-            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All ! [ getTimeNow ]
+            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All "" ! [ getTimeNow ]
 
 
 route : Url.Parser (Route -> a) a
@@ -109,6 +109,7 @@ type Msg
     | ChangeTransactionsDisplay TransactionsDisplay
     | SelectMonth String
     | SelectYear String
+    | InputQuery String
     | FocusOn String
     | FocusResult (Result Dom.Error ())
     | NoOp
@@ -365,7 +366,9 @@ update msg model =
                     newModel.currentTime
 
                 resultPrice =
-                    String.toFloat model.inputPrice
+                    model.inputPrice
+                        |> String.trim
+                        |> String.toFloat
 
                 currentBook =
                     Maybe.withDefault (dummyBook (getId time)) model.currentBook
@@ -473,6 +476,9 @@ update msg model =
                             -999
             in
             { model | selectedYear = year } ! []
+
+        InputQuery inputQuery ->
+            { model | query = inputQuery } ! []
 
         FocusOn id ->
             model ! [ Task.attempt FocusResult (Dom.focus id) ]
@@ -800,7 +806,7 @@ currentBalance transactions =
 
         ( theClass, theText ) =
             if total < 0 then
-                ( "tr-expense tr-balance", "(" ++ Round.round 2 -total ++ ")" )
+                ( "tr-expense tr-balance", Round.round 2 -total )
             else
                 ( "tr-earning tr-balance", Round.round 2 total )
     in
@@ -827,7 +833,7 @@ summaryTable categoryType transactions =
         ( priceHeadingText, priceHeadingClass ) =
             case categoryType of
                 Expense ->
-                    ( "(" ++ overallPrice ++ ")", "tr-expense" )
+                    ( overallPrice, "tr-expense" )
 
                 Earning ->
                     ( overallPrice, "tr-earning" )
@@ -862,7 +868,7 @@ summaryRow categoryType category total =
         ( priceText, priceClass ) =
             case categoryType of
                 Expense ->
-                    ( "(" ++ Helper.toTwoDecimal total ++ ")", "tr-expense" )
+                    ( Helper.toTwoDecimal total, "tr-expense" )
 
                 Earning ->
                     ( Helper.toTwoDecimal total, "tr-earning" )
@@ -1057,6 +1063,24 @@ transactionsTable model =
             model.transactionsToDisplay
                 |> List.sortBy .created
                 |> List.reverse
+                |> List.filter (byQuery model.query)
+
+        byQuery query transaction =
+            let
+                inDescription =
+                    transaction.description
+                        |> String.toLower
+                        |> String.contains (String.toLower query)
+
+                inCategory =
+                    transaction.category
+                        |> String.toLower
+                        |> String.contains (String.toLower query)
+            in
+            if inDescription || inCategory then
+                True
+            else
+                False
 
         currentBook =
             Maybe.withDefault (dummyBook "dummy") model.currentBook
@@ -1089,6 +1113,18 @@ transactionsTable model =
                             , div [ class "column" ]
                                 [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
                             ]
+                        , div [ class "field" ]
+                            [ p [ class "control has-icons-left" ]
+                                [ input
+                                    [ class "input"
+                                    , type_ "text"
+                                    , placeholder "search category | description"
+                                    , onInput InputQuery
+                                    ]
+                                    []
+                                , icon "fa-search" ""
+                                ]
+                            ]
                         , div [ class "content" ] [ p [] [ text "You have no transactions to display :(" ] ]
                         ]
 
@@ -1100,8 +1136,18 @@ transactionsTable model =
                             , div [ class "column is-pulled-right" ]
                                 [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
                             ]
-
-                        -- , hr [] []
+                        , div [ class "field" ]
+                            [ p [ class "control has-icons-left" ]
+                                [ input
+                                    [ class "input"
+                                    , type_ "text"
+                                    , placeholder "search category | description"
+                                    , onInput InputQuery
+                                    ]
+                                    []
+                                , icon "fa-search" "is-left"
+                                ]
+                            ]
                         , table [ class "table is-hoverable is-fullwidth" ]
                             [ tbody []
                                 (transactions
@@ -1128,7 +1174,7 @@ listTransaction transaction =
 
         ( priceText, transactionType ) =
             if transaction.price < 0 then
-                ( "(" ++ Helper.toTwoDecimal -transaction.price ++ ")", Expense )
+                ( Helper.toTwoDecimal -transaction.price, Expense )
             else
                 ( Helper.toTwoDecimal transaction.price, Earning )
 
@@ -1190,7 +1236,13 @@ transactionInputField model =
                     )
 
         inputPriceClass =
-            case String.toFloat model.inputPrice of
+            let
+                resPrice =
+                    model.inputPrice
+                        |> String.trim
+                        |> String.toFloat
+            in
+            case resPrice of
                 Ok _ ->
                     case model.selectedCategoryType of
                         Expense ->

@@ -23,6 +23,7 @@ type alias Model =
     , selectedMonth : Month
     , selectedYear : Int
     , currentDisplay : TransactionsDisplay
+    , query : String
     }
 
 

@@ -5,6 +5,7 @@
 
 ## Currently working
 
+- summary of current month in bookCard
 - summary as part of model
 - summary of ALL transactions by month
   - month | total expense | total earning | balance
@@ -17,17 +18,20 @@
   - in multiple organizational books
   - save locally or sync online
 - documentation
-- post to twitter and facebook with blog-entry
 - credits to the used open-sourced apps
 - LOGO!!!
 
 ## TODO
 
-- pages for monthly transactions
-  - use bulma pagination
+- add percentage in the summary
+- transactionsToDisplay defaults to current month
+- how about previous 30 days of view?
 - github-like timeline for transactions
   - put below categories
+- pages for monthly transactions
+  - use bulma pagination
 - save to csv
+- edit mode
 - User can defined his own defaultCategories.
 
 
@@ -55,6 +59,9 @@
 - fix the location of the current balance
 - fix the location of the delete button
 - put tooltips in the input fields
+- post to facebook with blog-entry
+- post to twitter
+- query
 
 
 ## Issues
