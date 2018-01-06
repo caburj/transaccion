@@ -126,7 +126,7 @@ update msg model =
             { model | inputExpenseCategory = "", inputEarningCategory = "" } ! []
 
         NewUrl url ->
-            model ! [ Nav.newUrl url ]
+            model ! [ Nav.newUrl url, getTimeNow ]
 
         UrlChange loc ->
             let
@@ -391,7 +391,7 @@ update msg model =
                             getId time
 
                         newTransaction =
-                            Transaction id realPrice newModel.selectedCategory newModel.inputDescription time time
+                            Transaction id realPrice newModel.selectedCategory (String.trim newModel.inputDescription) time time
 
                         newBooks =
                             Dict.update currentBook.id (addTransaction newTransaction) newModel.books
@@ -684,7 +684,7 @@ render model =
         AppR ->
             div []
                 [ div [ class "books-content columns is-multiline" ]
-                    (List.map bookCard (List.reverse <| List.sortBy .lastEdited (Dict.values model.books))
+                    (List.map (bookCard model.currentTime) (List.reverse <| List.sortBy .lastEdited (Dict.values model.books))
                         ++ [ addBookForm model ]
                     )
                 , deleteBookConfirmation model.selectedBookToDelete model.confirmDeleteBook
@@ -954,8 +954,8 @@ addCategoryForm book categoryType =
         ]
 
 
-bookCard : Book -> Html Msg
-bookCard book =
+bookCard : Time -> Book -> Html Msg
+bookCard currentTime book =
     let
         created =
             book.created
@@ -966,6 +966,59 @@ bookCard book =
             book.lastEdited
                 |> Date.fromTime
                 |> Date.toFormattedString "EEE, d-MMM-yy, HH:mm"
+
+        currentMonth =
+            currentTime
+                |> Date.fromTime
+                |> Date.month
+
+        currentYear =
+            currentTime
+                |> Date.fromTime
+                |> Date.year
+
+        recentTransactions =
+            let
+                isInTheGivenMonthYear transaction =
+                    let
+                        transactionMonth =
+                            transaction.created
+                                |> Date.fromTime
+                                |> Date.month
+                    in
+                    transactionMonth == currentMonth && isInTheGivenYear currentYear transaction
+            in
+            book.transactions
+                |> Dict.values
+                |> List.filter isInTheGivenMonthYear
+
+        totalExpenses =
+            recentTransactions
+                |> List.map .price
+                |> List.filter (\price -> price < 0)
+                |> List.map (\price -> -price)
+                |> List.sum
+
+        totalEarnings =
+            recentTransactions
+                |> List.map .price
+                |> List.filter (\price -> price >= 0)
+                |> List.sum
+
+        ( percent, progressClass ) =
+            let
+                ratio =
+                    totalExpenses / totalEarnings
+            in
+            if ratio < 1 then
+                ( ratio * 100, "progress is-medium is-link" )
+            else
+                ( 100, "progress id-medium is-danger" )
+
+        percentString =
+            percent
+                |> round
+                |> toString
     in
     div [ class "column is-3" ]
         [ div [ class "card" ]
@@ -978,7 +1031,16 @@ bookCard book =
                 ]
             , div [ class "card-content" ]
                 [ div [ class "content" ]
-                    [ node "time" [] [ text ("Last Edited: " ++ lastEdited) ]
+                    [ text "Recent month's expense/earning"
+                    , br [] []
+                    , br [] []
+                    , node "progress"
+                        [ class progressClass
+                        , attribute "value" percentString
+                        , attribute "max" "100"
+                        ]
+                        []
+                    , node "time" [] [ text ("Last Edited: " ++ lastEdited) ]
                     ]
                 ]
             , footer [ class "card-footer" ]
@@ -1063,7 +1125,7 @@ transactionsTable model =
             model.transactionsToDisplay
                 |> List.sortBy .created
                 |> List.reverse
-                |> List.filter (byQuery model.query)
+                |> List.filter (byQuery (String.trim model.query))
 
         byQuery query transaction =
             let
@@ -1120,12 +1182,13 @@ transactionsTable model =
                                     , type_ "text"
                                     , placeholder "search category | description"
                                     , onInput InputQuery
+                                    , onTab (FocusOn "tr-input-price")
                                     ]
                                     []
                                 , icon "fa-search" ""
                                 ]
                             ]
-                        , div [ class "content" ] [ p [] [ text "You have no transactions to display :(" ] ]
+                        , div [ class "content" ] [ p [] [ text "(Empty table. Just like your family table during Christmas and New Year's Eve. JK ^^, )" ] ]
                         ]
 
                 _ ->
@@ -1143,6 +1206,7 @@ transactionsTable model =
                                     , type_ "text"
                                     , placeholder "search category | description"
                                     , onInput InputQuery
+                                    , onTab (FocusOn "tr-input-price")
                                     ]
                                     []
                                 , icon "fa-search" "is-left"

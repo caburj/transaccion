@@ -5,7 +5,6 @@
 
 ## Currently working
 
-- summary of current month in bookCard
 - summary as part of model
 - summary of ALL transactions by month
   - month | total expense | total earning | balance
@@ -62,6 +61,7 @@
 - post to facebook with blog-entry
 - post to twitter
 - query
+- summary of current month in bookCard
 
 
 ## Issues
