@@ -166,7 +166,7 @@ update msg model =
                         |> Date.fromTime
                         |> Date.month
             in
-            update (ChangeTransactionsDisplay All)
+            update (ChangeTransactionsDisplay (ByMonth month year))
                 { newModel
                     | selectedCategory = category
                     , selectedMonth = month
@@ -442,7 +442,6 @@ update msg model =
                 ! [ saveBook (encode 2 (encodeBook newCurrentBook))
                   , cmds
                   , cmds2
-                  , focusTo "tr-input-price"
                   ]
 
         CalculateTransactionsToDisplay displayType ->
@@ -453,7 +452,7 @@ update msg model =
                 trDisplay =
                     calculateTransactionsToDisplay currentBook.transactions displayType
             in
-            { model | transactionsToDisplay = trDisplay } ! [ focusTo "tr-input-price" ]
+            { model | transactionsToDisplay = trDisplay } ! []
 
         ChangeTransactionsDisplay displayType ->
             update (CalculateTransactionsToDisplay displayType) { model | currentDisplay = displayType }
@@ -1043,8 +1042,7 @@ bookCard currentTime book =
             [ header [ class "card-header" ]
                 [ p [ class "card-header-title" ]
                     [ text book.name
-                    , span [ class "icon is-left" ]
-                        [ i [ class "fa fa-book" ] [] ]
+                    , icon "fa-book" "is-left"
                     ]
                 ]
             , div [ class "card-content" ]
@@ -1126,9 +1124,14 @@ addBookForm model =
                 [ class "control has-icons-left tooltip is-tooltip-multiline"
                 , attribute "data-tooltip" "Your transactions are organized by 'record book' or 'book'."
                 ]
-                [ input [ class "input is-medium", type_ "text", placeholder "add new book", onInput InputBookName ] []
-                , span [ class "icon is-left" ]
-                    [ i [ class "fa fa-book" ] [] ]
+                [ input
+                    [ class "input is-medium"
+                    , type_ "text"
+                    , placeholder "add new book"
+                    , onInput InputBookName
+                    ]
+                    []
+                , icon "fa-book" "is-left"
                 ]
             , p [ class "control" ]
                 [ button [ class "button is-dark is-medium", type_ "submit" ]
@@ -1187,22 +1190,19 @@ transactionsTable model =
                 |> List.map toString
                 |> unique
 
-        theTable =
-            case transactions of
-                [] ->
-                    div [ class "column" ]
-                        [ div [ class "columns" ]
-                            [ div [ class "column is-3" ]
-                                [ h1 [ class "subtitle" ] [ strong [] [ text "Transactions" ] ] ]
-                            , div [ class "column" ]
-                                [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
-                            ]
-                        , div [ class "field" ]
+        transactionTableTemplate content =
+            div []
+                [ h1 [ class "subtitle" ] [ strong [] [ text "Transactions" ] ]
+                , div [ class "columns" ]
+                    [ div [ class "column" ]
+                        [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear model.currentDisplay ]
+                    , div [ class "column" ]
+                        [ div [ class "field" ]
                             [ p [ class "control has-icons-left" ]
                                 [ input
                                     [ class "input"
                                     , type_ "text"
-                                    , placeholder "filter the displayed transactions by category || description"
+                                    , placeholder "filter displayed transactions"
                                     , onInput InputQuery
                                     , onTab (FocusOn "tr-input-price")
                                     ]
@@ -1210,39 +1210,28 @@ transactionsTable model =
                                 , icon "fa-search" "is-left"
                                 ]
                             ]
-                        , div [ class "content" ] [ p [] [ text "(Empty table. Just like your family table during Christmas and New Year's Eve. JK ^^, )" ] ]
+                        ]
+                    ]
+                , content
+                ]
+
+        content =
+            case transactions of
+                [] ->
+                    div [ class "content" ]
+                        [ p []
+                            [ text "(Empty table. Just like your family table during Christmas and New Year's Eve. JK ^^, )" ]
                         ]
 
                 _ ->
-                    div [ class "column" ]
-                        [ div [ class "columns" ]
-                            [ div [ class "column is-3" ]
-                                [ h1 [ class "subtitle" ] [ strong [] [ text "Transactions" ] ] ]
-                            , div [ class "column is-pulled-right" ]
-                                [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear ]
-                            ]
-                        , div [ class "field" ]
-                            [ p [ class "control has-icons-left" ]
-                                [ input
-                                    [ class "input"
-                                    , type_ "text"
-                                    , placeholder "filter the displayed transactions by category || description"
-                                    , onInput InputQuery
-                                    , onTab (FocusOn "tr-input-price")
-                                    ]
-                                    []
-                                , icon "fa-search" "is-left"
-                                ]
-                            ]
-                        , table [ class "table is-hoverable is-fullwidth" ]
-                            [ tbody []
-                                (transactions
-                                    |> List.map listTransaction
-                                )
-                            ]
+                    table [ class "table is-hoverable is-fullwidth" ]
+                        [ tbody []
+                            (transactions
+                                |> List.map listTransaction
+                            )
                         ]
     in
-    div [ class "box" ] [ theTable ]
+    div [ class "box" ] [ transactionTableTemplate content ]
 
 
 listTransaction : Transaction -> Html Msg
@@ -1395,11 +1384,8 @@ transactionInputField model =
                 ]
                 [ div
                     [ class "select"
-                    , onInput ChangeCategory
-
-                    -- , style [ ( "width", "100px" ) ]
                     ]
-                    [ select []
+                    [ select [ onInput ChangeCategory ]
                         (List.map (nameToOptionSelected model.selectedCategory) categories)
                     ]
                 ]
@@ -1447,7 +1433,8 @@ transactionInputField model =
 
 icon : String -> String -> Html Msg
 icon name additionalAttributes =
-    span [ class ("icon " ++ additionalAttributes) ] [ i [ class ("fa " ++ name) ] [] ]
+    span [ class ("icon " ++ additionalAttributes) ]
+        [ i [ class ("fa " ++ name) ] [] ]
 
 
 nameToOptionSelected : String -> String -> Html Msg
@@ -1463,48 +1450,81 @@ nameToOption name =
     option [ value name ] [ text name ]
 
 
-displayTransactionsControl : List String -> List String -> Month -> Int -> Html Msg
-displayTransactionsControl months years selectedMonth selectedYear =
-    div [ class "field is-grouped is-pulled-right" ]
-        [ div [ class "field" ]
-            [ input
-                [ class "is-checkradio"
-                , id "tr-display-all"
-                , type_ "radio"
-                , name "displayType"
-                , onClick (ChangeTransactionsDisplay All)
-                ]
-                []
-            , label [ for "tr-display-all" ] [ text "All" ]
-            , input
-                [ class "is-checkradio"
-                , id "tr-display-by-month"
-                , type_ "radio"
-                , name "displayType"
-                , onClick (ChangeTransactionsDisplay (ByMonth selectedMonth selectedYear))
-                ]
-                []
-            , label [ for "tr-display-by-month" ] [ text "By Month" ]
-            , input
-                [ class "is-checkradio"
-                , id "tr-display-by-year"
-                , type_ "radio"
-                , name "displayType"
-                , onClick (ChangeTransactionsDisplay (ByYear selectedYear))
-                ]
-                []
-            , label [ for "tr-display-by-year" ] [ text "By Year" ]
+displayTransactionsControl : List String -> List String -> Month -> Int -> TransactionsDisplay -> Html Msg
+displayTransactionsControl months years selectedMonth selectedYear currentDisplay =
+    let
+        newTransactionDisplay currentDisplay =
+            case currentDisplay of
+                All ->
+                    ChangeTransactionsDisplay (ByMonth selectedMonth selectedYear)
+
+                ByMonth _ _ ->
+                    ChangeTransactionsDisplay (ByYear selectedYear)
+
+                ByYear _ ->
+                    ChangeTransactionsDisplay All
+
+        displayButtonText currentDisplay =
+            case currentDisplay of
+                All ->
+                    "Show All"
+
+                ByMonth _ _ ->
+                    "By Month"
+
+                ByYear _ ->
+                    "By Year"
+
+        tooltipText currentDisplay =
+            case currentDisplay of
+                All ->
+                    "Click to change display to: By Month"
+
+                ByMonth _ _ ->
+                    "Click to change display to: By Year"
+
+                ByYear _ ->
+                    "Click to change display to: Show All"
+
+        ( isMonthDisabled, isYearDisabled ) =
+            case currentDisplay of
+                All ->
+                    ( True, True )
+
+                ByMonth _ _ ->
+                    ( False, False )
+
+                ByYear _ ->
+                    ( True, False )
+    in
+    div [ class "field has-addons" ]
+        [ div
+            [ class "control tooltip"
+            , attribute "data-tooltip" (tooltipText currentDisplay)
             ]
-        , div [ class "field has-addons" ]
-            [ div [ class "control" ]
-                [ div [ class "select", onInput SelectMonth ]
-                    [ select [] (List.map (nameToOptionSelected (toString selectedMonth)) months)
-                    ]
+            [ button
+                [ class "button is-dark"
+                , style [ ( "width", "100px" ) ]
+                , onClick (newTransactionDisplay currentDisplay)
                 ]
-            , div [ class "control" ]
-                [ div [ class "select", onInput SelectYear ]
-                    [ select [] (List.map (nameToOptionSelected (toString selectedYear)) years)
+                [ text (displayButtonText currentDisplay) ]
+            ]
+        , div [ class "control" ]
+            [ div [ class "select" ]
+                [ select
+                    [ disabled isMonthDisabled
+                    , onInput SelectMonth
                     ]
+                    (List.map (nameToOptionSelected (toString selectedMonth)) months)
+                ]
+            ]
+        , div [ class "control" ]
+            [ div [ class "select" ]
+                [ select
+                    [ disabled isYearDisabled
+                    , onInput SelectYear
+                    ]
+                    (List.map (nameToOptionSelected (toString selectedYear)) years)
                 ]
             ]
         ]
