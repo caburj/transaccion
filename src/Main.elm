@@ -645,10 +645,24 @@ view model =
             [ div [ class "hero-head" ]
                 [ navbar ]
             , div [ class "hero-body", hidden heroHidden ]
-                [ div [ class "container" ]
-                    [ h1 [ class "title" ] [ text "record, monitor, profit" ]
-                    , h2 [ class "subtitle" ]
-                        [ text "record your transactions using this very simple and intuitive app"
+                [ div [ class "columns" ]
+                    [ div [ class "column is-two-thirds" ]
+                        [ h1 [ class "title" ] [ text "record, monitor, profit" ]
+                        , h2 [ class "subtitle" ]
+                            [ text "record your transactions using this very simple and intuitive app"
+                            ]
+                        ]
+                    , div [ class "column" ]
+                        [ button [ class "button is-large is-link", onClick (NewUrl "/books") ]
+                            [ h1 [ class "subtitle is-4 is-light" ]
+                                [ text ""
+
+                                -- , span [ class "icon" ] [ i [ class "fa fa-angle-double-left" ] [] ]
+                                , text "start app"
+
+                                -- , span [ class "icon" ] [ i [ class "fa fa-angle-double-right" ] [] ]
+                                ]
+                            ]
                         ]
                     ]
                 ]
@@ -664,12 +678,6 @@ navbar =
         [ div [ class "navbar-brand" ]
             [ a [ class "navbar-item", onClick (NewUrl "/") ]
                 [ h1 [ class "title is-light is-3" ] [ text "transaccion" ] ]
-            , a [ class "navbar-item", onClick (NewUrl "/books") ]
-                [ h1 [ class "subtitle is-4 is-light" ]
-                    [ text "view books"
-                    , span [ class "icon" ] [ i [ class "fa fa-angle-double-right" ] [] ]
-                    ]
-                ]
             ]
         ]
 
@@ -1394,7 +1402,7 @@ transactionInputField model =
                 , attribute "data-tooltip" "Perhaps tell me about the product name, quantity, brand and shop, if not too much to ask."
                 ]
                 [ input
-                    [ class "input"
+                    [ class "input is-fullwidth"
                     , type_ "text"
                     , placeholder "description"
                     , maxlength 150
