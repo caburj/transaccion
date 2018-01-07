@@ -1309,14 +1309,14 @@ transactionInputField model =
             case model.selectedCategoryType of
                 Expense ->
                     ( .expenseCategories (Maybe.withDefault (dummyBook "dummy") model.currentBook)
-                    , "is-danger is-medium"
+                    , "is-danger"
                     , "Click to change to Earning."
                     , "How much did you spend?"
                     )
 
                 Earning ->
                     ( .earningCategories (Maybe.withDefault (dummyBook "dummy") model.currentBook)
-                    , "is-link is-medium"
+                    , "is-link"
                     , "Click to change to Expense."
                     , "How much did you earn?"
                     )
@@ -1332,13 +1332,30 @@ transactionInputField model =
                 Ok _ ->
                     case model.selectedCategoryType of
                         Expense ->
-                            "input is-danger is-medium"
+                            "input is-danger"
 
                         Earning ->
-                            "input is-link is-medium"
+                            "input is-link"
 
                 Err _ ->
-                    "input is-warning is-medium"
+                    "input is-warning"
+
+        categoryTypeButtonText =
+            case model.selectedCategoryType of
+                Expense ->
+                    text "Expense"
+
+                Earning ->
+                    text "Earning"
+
+        -- span []
+        --     [ span [ class "icon" ]
+        --         [ i [ class "fa fa-minus" ] [] ]
+        --     ]
+        -- span []
+        --     [ span [ class "icon" ]
+        --         [ i [ class "fa fa-plus" ] [] ]
+        --     ]
     in
     Html.form [ class "field tr-input-field", onSubmit AddTransaction, onEscape CancelTransactionInput ]
         [ div [ class "field has-addons" ]
@@ -1350,7 +1367,7 @@ transactionInputField model =
                     [ class ("button " ++ categoryTypeColor)
                     , onClick ChangeCategoryType
                     ]
-                    [ text (toString model.selectedCategoryType) ]
+                    [ categoryTypeButtonText ]
                 ]
             , p
                 [ class "control has-icons-left tooltip"
@@ -1363,9 +1380,9 @@ transactionInputField model =
                     , maxlength 15
                     , value model.inputPrice
                     , onInput InputPrice
+                    , placeholder "price"
                     , style [ ( "width", "100px" ) ]
 
-                    -- , placeholder "price"
                     -- , attribute "min" "0"
                     -- , attribute "step" "0.01"
                     ]
@@ -1376,7 +1393,12 @@ transactionInputField model =
                 [ class "control tooltip"
                 , attribute "data-tooltip" "Edit the categories in the lower right boxes."
                 ]
-                [ div [ class "select is-medium", onInput ChangeCategory ]
+                [ div
+                    [ class "select"
+                    , onInput ChangeCategory
+
+                    -- , style [ ( "width", "100px" ) ]
+                    ]
                     [ select []
                         (List.map (nameToOptionSelected model.selectedCategory) categories)
                     ]
@@ -1386,7 +1408,7 @@ transactionInputField model =
                 , attribute "data-tooltip" "Perhaps tell me about the product name, quantity, brand and shop, if not too much to ask."
                 ]
                 [ input
-                    [ class "input is-medium"
+                    [ class "input"
                     , type_ "text"
                     , placeholder "description"
                     , maxlength 150
@@ -1400,20 +1422,21 @@ transactionInputField model =
                 ]
             , div
                 [ class "control tooltip"
-                , attribute "data-tooltip" "Press <enter> to confirm transaction."
+                , attribute "data-tooltip" "Press <enter> to confirm transaction. Press <esc> to cancel."
                 ]
                 [ button
-                    [ class "button is-dark is-medium"
+                    [ class "button is-dark"
                     , type_ "submit"
                     ]
-                    [ icon "fa-plus" "" ]
+                    [ icon "fa-chevron-right" "" ]
                 ]
             , div
                 [ class "control tooltip"
                 , attribute "data-tooltip" "Press <esc> to cancel."
+                , hidden True
                 ]
                 [ button
-                    [ class "button is-danger is-medium"
+                    [ class "button is-danger"
                     , onClick CancelTransactionInput
                     ]
                     [ icon "fa-close" "" ]
@@ -1461,7 +1484,7 @@ displayTransactionsControl months years selectedMonth selectedYear =
                 , onClick (ChangeTransactionsDisplay (ByMonth selectedMonth selectedYear))
                 ]
                 []
-            , label [ for "tr-display-by-month" ] [ text "ByMonth" ]
+            , label [ for "tr-display-by-month" ] [ text "By Month" ]
             , input
                 [ class "is-checkradio"
                 , id "tr-display-by-year"
@@ -1470,7 +1493,7 @@ displayTransactionsControl months years selectedMonth selectedYear =
                 , onClick (ChangeTransactionsDisplay (ByYear selectedYear))
                 ]
                 []
-            , label [ for "tr-display-by-year" ] [ text "ByYear" ]
+            , label [ for "tr-display-by-year" ] [ text "By Year" ]
             ]
         , div [ class "field has-addons" ]
             [ div [ class "control" ]
