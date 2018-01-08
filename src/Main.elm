@@ -51,7 +51,7 @@ init : Maybe String -> Nav.Location -> ( Model, Cmd Msg )
 init maybeBooks loc =
     case maybeBooks of
         Nothing ->
-            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All "" False Nothing ! [ getTimeNow ]
+            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All "" False Nothing "Any" ! [ getTimeNow ]
 
         Just strBook ->
             let
@@ -66,7 +66,7 @@ init maybeBooks loc =
                         Err _ ->
                             initBooks
             in
-            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All "" False Nothing ! [ getTimeNow ]
+            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All "" False Nothing "Any" ! [ getTimeNow ]
 
 
 route : Url.Parser (Route -> a) a
@@ -112,6 +112,7 @@ type Msg
     | SelectMonth String
     | SelectYear String
     | InputQuery String
+    | ChangeFilterType String
     | FocusOn String
     | FocusResult (Result Dom.Error ())
     | NoOp
@@ -492,6 +493,9 @@ update msg model =
 
         InputQuery inputQuery ->
             { model | query = inputQuery } ! []
+
+        ChangeFilterType newFilterType ->
+            { model | selectedFilterType = newFilterType } ! []
 
         FocusOn id ->
             model ! [ Task.attempt FocusResult (Dom.focus id) ]
@@ -1255,9 +1259,9 @@ transactionsTable model =
             model.transactionsToDisplay
                 |> List.sortBy .created
                 |> List.reverse
-                |> List.filter (byQuery (String.trim model.query))
+                |> List.filter (byQuery (String.trim model.query) model.selectedFilterType)
 
-        byQuery query transaction =
+        byQuery query filterType transaction =
             let
                 inDescription =
                     transaction.description
@@ -1268,8 +1272,30 @@ transactionsTable model =
                     transaction.category
                         |> String.toLower
                         |> String.contains (String.toLower query)
+
+                inFilterType =
+                    if transaction.price > 0 then
+                        case filterType of
+                            "Expenses" ->
+                                False
+
+                            "Earnings" ->
+                                True
+
+                            _ ->
+                                True
+                    else
+                        case filterType of
+                            "Expenses" ->
+                                True
+
+                            "Earnings" ->
+                                False
+
+                            _ ->
+                                True
             in
-            if inDescription || inCategory then
+            if (inDescription || inCategory) && inFilterType then
                 True
             else
                 False
@@ -1302,8 +1328,16 @@ transactionsTable model =
                     [ div [ class "column" ]
                         [ displayTransactionsControl listMonth listYear model.selectedMonth model.selectedYear model.currentDisplay ]
                     , div [ class "column" ]
-                        [ div [ class "field" ]
-                            [ p [ class "control has-icons-left" ]
+                        [ div [ class "field has-addons" ]
+                            [ p [ class "control" ]
+                                [ div [ class "select" ]
+                                    [ select [ onInput ChangeFilterType ]
+                                        (List.map (nameToOptionSelected model.selectedFilterType)
+                                            [ "Any", "Expenses", "Earnings" ]
+                                        )
+                                    ]
+                                ]
+                            , p [ class "control has-icons-left" ]
                                 [ input
                                     [ class "input"
                                     , type_ "text"

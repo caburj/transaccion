@@ -5,6 +5,7 @@
 
 ## Currently working
 
+- add percentage in the summary
 - summary as part of model
 - summary of ALL transactions by month
   - month | total expense | total earning | balance
@@ -15,7 +16,6 @@
 ## TODO
 
 - 100% RESPONSIVE!!
-- add percentage in the summary
 - how about previous 30 days of view?
 - github-like timeline for transactions
   - put below categories
@@ -64,6 +64,7 @@
   - save locally or sync online
 - transactionsToDisplay defaults to current month
 - confirm delete
+- add expense or earning in the filter
 
 
 ## Issues

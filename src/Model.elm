@@ -26,6 +26,7 @@ type alias Model =
     , query : String
     , confirmDeleteTransaction : Bool
     , selectedTransactionToDelete : Maybe Transaction
+    , selectedFilterType : String
     }
 
 
