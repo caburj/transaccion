@@ -16,7 +16,6 @@
 
 - 100% RESPONSIVE!!
 - add percentage in the summary
-- transactionsToDisplay defaults to current month
 - how about previous 30 days of view?
 - github-like timeline for transactions
   - put below categories
@@ -63,6 +62,8 @@
   - record your transactions
   - in multiple organizational books
   - save locally or sync online
+- transactionsToDisplay defaults to current month
+- confirm delete
 
 
 ## Issues

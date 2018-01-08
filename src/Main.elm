@@ -51,7 +51,7 @@ init : Maybe String -> Nav.Location -> ( Model, Cmd Msg )
 init maybeBooks loc =
     case maybeBooks of
         Nothing ->
-            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All "" ! [ getTimeNow ]
+            Model HomeR initBooks "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All "" False Nothing ! [ getTimeNow ]
 
         Just strBook ->
             let
@@ -66,7 +66,7 @@ init maybeBooks loc =
                         Err _ ->
                             initBooks
             in
-            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All "" ! [ getTimeNow ]
+            Model HomeR books "" "" "" Nothing 0 "" Expense "" "" False Nothing [] Jan 0 All "" False Nothing ! [ getTimeNow ]
 
 
 route : Url.Parser (Route -> a) a
@@ -103,6 +103,8 @@ type Msg
     | ChangeCategoryType
     | ChangeCategory String
     | AddTransaction
+    | ConfirmDeleteTransaction (Maybe Transaction)
+    | CancelDeleteTransaction
     | DeleteTransaction Id
     | CancelTransactionInput
     | CalculateTransactionsToDisplay TransactionsDisplay
@@ -415,6 +417,9 @@ update msg model =
                           , focusTo "tr-input-price"
                           ]
 
+        ConfirmDeleteTransaction maybeTransaction ->
+            { model | confirmDeleteTransaction = True, selectedTransactionToDelete = maybeTransaction } ! []
+
         DeleteTransaction id ->
             let
                 ( newModel, cmds ) =
@@ -436,13 +441,22 @@ update msg model =
                     replace currentBook.id newCurrentBook newModel.books
 
                 ( newModel2, cmds2 ) =
-                    update (ChangeTransactionsDisplay newModel.currentDisplay) { newModel | books = newBooks, currentBook = Just newCurrentBook }
+                    update (ChangeTransactionsDisplay newModel.currentDisplay)
+                        { newModel
+                            | books = newBooks
+                            , currentBook = Just newCurrentBook
+                            , confirmDeleteTransaction = False
+                            , selectedTransactionToDelete = Nothing
+                        }
             in
             newModel2
                 ! [ saveBook (encode 2 (encodeBook newCurrentBook))
                   , cmds
                   , cmds2
                   ]
+
+        CancelDeleteTransaction ->
+            { model | confirmDeleteTransaction = False, selectedTransactionToDelete = Nothing } ! []
 
         CalculateTransactionsToDisplay displayType ->
             let
@@ -754,6 +768,7 @@ render model =
                                 , categoriesBox book Earning DeleteEarningCategory
                                 ]
                             ]
+                        , deleteTransactionConfirmation model.selectedTransactionToDelete model.confirmDeleteTransaction
                         ]
 
                 Nothing ->
@@ -1153,6 +1168,59 @@ deleteBookConfirmation maybeBook isActive =
         ]
 
 
+deleteTransactionConfirmation : Maybe Transaction -> Bool -> Html Msg
+deleteTransactionConfirmation maybeTransaction isActive =
+    let
+        modalClass =
+            case maybeTransaction of
+                Nothing ->
+                    "modal"
+
+                Just _ ->
+                    if isActive then
+                        "modal is-active"
+                    else
+                        "modal"
+
+        transaction =
+            Maybe.withDefault (Transaction "" 0.0 "" "" 0.0 0.0) maybeTransaction
+
+        message =
+            "Are you sure you want to delete this transaction?"
+
+        ( priceText, priceClass ) =
+            if transaction.price > 0 then
+                ( Helper.toTwoDecimal transaction.price, "tr-earning" )
+            else
+                ( Helper.toTwoDecimal -transaction.price, "tr-expense" )
+
+        transactionText =
+            [ span [ class priceClass ] [ text priceText ]
+            , text (" | " ++ transaction.category ++ " | ")
+            , span [ class "tr-description" ] [ text transaction.description ]
+            ]
+    in
+    div [ class modalClass ]
+        [ div [ class "modal-background" ] []
+        , div [ class "modal-card" ]
+            [ header [ class "modal-card-head" ]
+                [ p [ class "modal-card-title" ] [ text "delete confirmation" ]
+                , button [ class "delete", attribute "aria-label" "close", onClick CancelDeleteTransaction ] []
+                ]
+            , section [ class "modal-card-body" ]
+                [ div [ class "content" ]
+                    [ p [] [ text message ]
+                    , h1 [ class "title is-5", align "center" ] transactionText
+                    ]
+                ]
+            , footer [ class "modal-card-foot", style [ ( "justify-content", "flex-end" ) ] ]
+                [ button [ class "button is-pulled-right", onClick CancelDeleteTransaction ] [ text "Cancel" ]
+                , button [ class "button is-danger is-pulled-right", onClick (DeleteTransaction transaction.id) ] [ text "Delete" ]
+                ]
+            ]
+        ]
+
+
 addBookForm : Model -> Html Msg
 addBookForm model =
     Html.form [ class "column is-3", onSubmit (AddBook model.inputBookName) ]
@@ -1323,7 +1391,7 @@ listTransaction transaction =
             , p [ class "tr-description" ] [ text description ]
             ]
         , td [ class "tr-right" ]
-            [ button [ class "delete is-medium", onClick (DeleteTransaction transaction.id) ] []
+            [ button [ class "delete is-medium", onClick (ConfirmDeleteTransaction (Just transaction)) ] []
             ]
         ]
 

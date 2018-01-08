@@ -24,6 +24,8 @@ type alias Model =
     , selectedYear : Int
     , currentDisplay : TransactionsDisplay
     , query : String
+    , confirmDeleteTransaction : Bool
+    , selectedTransactionToDelete : Maybe Transaction
     }
 
 
