@@ -8,14 +8,6 @@
 - summary as part of model
 - summary of ALL transactions by month
   - month | total expense | total earning | balance
-- the homepage
-  - record your transactions to properly monitor your money
-  - work with privacy using your own 5apps account
-  - make a profit
-  - or or or
-  - record your transactions
-  - in multiple organizational books
-  - save locally or sync online
 - documentation
 - credits to the used open-sourced apps
 - LOGO!!!
@@ -63,6 +55,14 @@
 - post to twitter
 - query
 - summary of current month in bookCard
+- the homepage
+  - record your transactions to properly monitor your money
+  - work with privacy using your own 5apps account
+  - make a profit
+  - or or or
+  - record your transactions
+  - in multiple organizational books
+  - save locally or sync online
 
 
 ## Issues

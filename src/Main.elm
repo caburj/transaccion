@@ -645,30 +645,59 @@ view model =
             [ div [ class "hero-head" ]
                 [ navbar ]
             , div [ class "hero-body", hidden heroHidden ]
-                [ div [ class "columns" ]
-                    [ div [ class "column is-two-thirds" ]
-                        [ h1 [ class "title" ] [ text "record, monitor, profit" ]
-                        , h2 [ class "subtitle" ]
-                            [ text "record your transactions using this very simple and intuitive app"
-                            ]
-                        ]
-                    , div [ class "column" ]
-                        [ button [ class "button is-large is-link", onClick (NewUrl "/books") ]
-                            [ h1 [ class "subtitle is-4 is-light" ]
-                                [ text ""
-
-                                -- , span [ class "icon" ] [ i [ class "fa fa-angle-double-left" ] [] ]
-                                , text "start app"
-
-                                -- , span [ class "icon" ] [ i [ class "fa fa-angle-double-right" ] [] ]
-                                ]
-                            ]
+                [ h1 [ class "title is-3" ] [ text "record, monitor, profit" ]
+                , h2 [ class "subtitle" ]
+                    [ text "record your transactions using this very simple and intuitive app"
+                    ]
+                , hr [] []
+                , button [ class "button is-large is-link is-pulled-right", onClick (NewUrl "/books") ]
+                    [ h1 [ class "title is-4 is-light" ]
+                        [ text "start app"
                         ]
                     ]
                 ]
             , div [ class "hero-foot", hidden heroHidden ] [ div [ class "container" ] [] ]
             ]
+        , showcase heroHidden
         , render model
+        ]
+
+
+showcase : Bool -> Html Msg
+showcase isHidden =
+    div [ class "container is-fluid", hidden isHidden ]
+        [ div [ class "columns" ]
+            [ div [ class "column" ]
+                [ article [ class "tr-article" ]
+                    [ hr [] []
+                    , p [ class "title is-4" ] [ text "Record" ]
+                    , p [] [ img [ src "./img/edit.png", alt "record", height 75, width 75 ] [] ]
+                    , hr [] []
+                    , p [] [ text "Record your transactions to properly monitor your money" ]
+                    , hr [] []
+                    ]
+                ]
+            , div [ class "column" ]
+                [ article [ class "tr-article" ]
+                    [ hr [] []
+                    , p [ class "title is-4" ] [ text "Organize" ]
+                    , p [] [ img [ src "./img/book.png", alt "organize", height 75, width 75 ] [] ]
+                    , hr [] []
+                    , p [] [ text "Create multiple books that corresponds to your several accounts" ]
+                    , hr [] []
+                    ]
+                ]
+            , div [ class "column" ]
+                [ article [ class "tr-article" ]
+                    [ hr [] []
+                    , p [ class "title is-4" ] [ text "Own your data" ]
+                    , p [] [ img [ src "./img/lock.png", alt "Own", height 75, width 75 ] [] ]
+                    , hr [] []
+                    , p [] [ text "Never worry about privacy because your records are saved in your device" ]
+                    , hr [] []
+                    ]
+                ]
+            ]
         ]
 
 

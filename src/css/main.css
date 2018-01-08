@@ -97,6 +97,23 @@ table > tbody > tr > td.tr-left {
   vertical-align: middle;
 }
 
+article.tr-article {
+  width: 18em;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 2em;
+  margin-bottom: 2em;
+  text-align: center;
+}
+
+article.tr-article > p {
+  font-size: 1.4em;
+}
+
+img.tr-img {
+  display: block;
+}
+
 /* .float{
 	position:fixed;
 	width:60px;
@@ -119,6 +136,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
+  /* background: lightgray; */
 }
 #wrapper {
   min-height: 100%;
@@ -132,11 +150,11 @@ body {
   padding-bottom: 150px;
 }
 #footer {
-  background: white;
+  /* background: white; */
   width: 100%;
   height: 0;
   position: absolute;
   bottom: 0;
   left: 0;
-  vertical-align: bottom;
+  vertical-align: middle;
 }
