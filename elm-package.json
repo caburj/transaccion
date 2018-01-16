@@ -1,8 +1,8 @@
 {
     "version": "1.0.0",
-    "summary": "helpful summary of your project, less than 80 characters",
+    "summary": "yet another expense manager app",
     "repository": "https://github.com/caburj/transaccion.git",
-    "license": "BSD3",
+    "license": "Apache License 2.0",
     "source-directories": [
         "src"
     ],

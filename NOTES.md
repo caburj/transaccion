@@ -6,6 +6,7 @@
 ## Currently working
 
 - add percentage in the summary
+- components in the pie chart can be chosen
 - summary as part of model
 - summary of ALL transactions by month
   - month | total expense | total earning | balance
