@@ -767,6 +767,7 @@ render model =
                                 ]
                             , div [ class "column is-one-third" ]
                                 [ summaryBoxByCategory model.transactionsToDisplay
+                                , summaryBoxByMonth model.currentTime (book.transactions |> Dict.values)
                                 , chartBox model.transactionsToDisplay
                                 , categoriesBox book Expense DeleteExpenseCategory
                                 , categoriesBox book Earning DeleteEarningCategory
@@ -845,7 +846,10 @@ summaryBoxByCategory transactions =
     div [ class "box" ]
         [ div [ class "content" ]
             [ h1 [ class "subtitle is-5", style [ ( "float", "left" ) ] ] [ strong [] [ text "Summary" ] ]
-            , p [ style [ ( "float", "right" ) ] ] [ currentBalance transactions ]
+            , p [ style [ ( "float", "right" ) ] ]
+                [ span [] [ text "Current " ]
+                , currentBalance transactions
+                ]
             , br [] []
             ]
         , summaryTable Expense expenses
@@ -964,6 +968,89 @@ chartBox transactions =
     div [ class "box" ]
         [ h1 [ class "subtitle is-5" ] [ strong [] [ text "Expense Chart" ] ]
         , div [] [ toDisplay ]
+        ]
+
+
+summaryBoxByMonth : Time -> List Transaction -> Html Msg
+summaryBoxByMonth currentTime transactions =
+    let
+        currentYear =
+            currentTime |> (Date.fromTime >> Date.year)
+
+        currentYearTransactions =
+            transactions
+                |> List.filter (\t -> (t.created |> (Date.fromTime >> Date.year)) == currentYear)
+
+        summaryHeader =
+            thead []
+                [ tr []
+                    [ th [] [ text "Month" ]
+                    , th [] [ p [ align "right" ] [ text "Total" ] ]
+                    ]
+                ]
+
+        months =
+            transactions
+                |> List.map .created
+                |> List.map (Date.fromTime >> Date.month)
+                |> List.map toString
+                |> unique
+                |> List.map Helper.monthFromString
+
+        calcTotalByMonth transactions month =
+            transactions
+                |> List.filter
+                    (\t ->
+                        month == (t.created |> (Date.fromTime >> Date.month))
+                    )
+                |> List.map .price
+                |> List.sum
+
+        totalPrices =
+            months
+                |> List.map (calcTotalByMonth transactions)
+
+        rows =
+            List.map2 summaryByMonthRow months totalPrices
+
+        theTable =
+            case List.length rows of
+                0 ->
+                    div [] [ text "Nothing to display..." ]
+
+                _ ->
+                    summaryHeader
+                        :: [ tbody [] rows ]
+                        |> table [ class "table is-hoverable is-fullwidth" ]
+
+        title =
+            "Year " ++ toString currentYear
+    in
+    div [ class "box" ]
+        [ div [ class "content" ]
+            [ h1 [ class "subtitle is-5", style [ ( "float", "left" ) ] ] [ strong [] [ text title ] ]
+            , p [ style [ ( "float", "right" ) ] ]
+                [ span [] [ text "Overall " ]
+                , currentBalance currentYearTransactions
+                ]
+            , br [] []
+            ]
+        , div [ class "box" ] [ theTable ]
+        ]
+
+
+summaryByMonthRow : Month -> Float -> Html Msg
+summaryByMonthRow month totalPrice =
+    let
+        ( priceText, priceClass ) =
+            if totalPrice < 0 then
+                ( -totalPrice |> Helper.toTwoDecimal, "tr-expense" )
+            else
+                ( totalPrice |> Helper.toTwoDecimal, "tr-earning" )
+    in
+    tr []
+        [ td [] [ text (toString month) ]
+        , td [] [ p [ class priceClass, align "right" ] [ text priceText ] ]
         ]
 
 
