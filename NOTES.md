@@ -9,12 +9,8 @@ Todos and stuff
 
 ## Currently working
 
-- summary by month
 - components in the pie chart can be chosen
-- add percentage in the summary
 - summary as part of model
-- summary of ALL transactions by month
-  - month | total expense | total earning | balance
 - documentation
 - credits to the used open-sourced apps
 - LOGO!!!
@@ -34,6 +30,10 @@ Todos and stuff
 
 ## Implemented
 
+- summary of ALL transactions by month
+  - month | total expense | total earning | balance
+- add percentage in the summary
+- summary by month
 - user can add categories
 - add created and lastEdited properties for book and transaction
 - set max length for inputcategory

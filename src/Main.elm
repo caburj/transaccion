@@ -755,7 +755,7 @@ render model =
                 Just book ->
                     div [ class "books-content block" ]
                         [ div [ class "columns" ]
-                            [ div [ class "column is-two-thirds" ]
+                            [ div [ class "column is-7" ]
                                 [ div [ class "columns" ]
                                     [ div [ class "column is-3" ]
                                         [ h1 [ class "title is-3" ] [ text book.name ] ]
@@ -765,8 +765,8 @@ render model =
                                 -- , hr [] []
                                 , transactionsTable model
                                 ]
-                            , div [ class "column is-one-third" ]
-                                [ summaryBoxByCategory model.transactionsToDisplay
+                            , div [ class "column is-5" ]
+                                [ summaryBoxByCategory model.transactionsToDisplay model.currentDisplay
                                 , summaryBoxByMonth model.currentTime (book.transactions |> Dict.values)
                                 , chartBox model.transactionsToDisplay
                                 , categoriesBox book Expense DeleteExpenseCategory
@@ -831,8 +831,8 @@ categoriesBox book category msg =
         ]
 
 
-summaryBoxByCategory : List Transaction -> Html Msg
-summaryBoxByCategory transactions =
+summaryBoxByCategory : List Transaction -> TransactionsDisplay -> Html Msg
+summaryBoxByCategory transactions currentDisplay =
     let
         expenses =
             transactions
@@ -842,10 +842,21 @@ summaryBoxByCategory transactions =
         earnings =
             transactions
                 |> List.filter (\t -> t.price >= 0)
+
+        summaryText =
+            case currentDisplay of
+                All ->
+                    "Summary: All"
+
+                ByYear year ->
+                    "Summary: " ++ toString year
+
+                ByMonth month year ->
+                    "Summary: " ++ toString month ++ toString year
     in
     div [ class "box" ]
         [ div [ class "content" ]
-            [ h1 [ class "subtitle is-5", style [ ( "float", "left" ) ] ] [ strong [] [ text "Summary" ] ]
+            [ h1 [ class "subtitle is-5", style [ ( "float", "left" ) ] ] [ strong [] [ text summaryText ] ]
             , p [ style [ ( "float", "right" ) ] ]
                 [ span [] [ text "Current " ]
                 , currentBalance transactions
@@ -886,29 +897,33 @@ summaryTable categoryType transactions =
             categories
                 |> List.map (calcTotalPrice transactions)
 
+        percentages =
+            totalPrices
+                |> List.map (\p -> p / overallPrice * 100)
+
         overallPrice =
             totalPrices
                 |> List.sum
-                |> Round.round 2
 
         ( priceHeadingText, priceHeadingClass ) =
             case categoryType of
                 Expense ->
-                    ( overallPrice, "tr-expense" )
+                    ( overallPrice |> Helper.toTwoDecimal, "tr-expense" )
 
                 Earning ->
-                    ( overallPrice, "tr-earning" )
+                    ( overallPrice |> Helper.toTwoDecimal, "tr-earning" )
 
         summaryHeader =
             thead []
                 [ tr []
                     [ th [] [ text (toString categoryType ++ "s") ]
+                    , th [] [ p [ align "right" ] [ text "Percent" ] ]
                     , th [] [ p [ class priceHeadingClass, align "right" ] [ text priceHeadingText ] ]
                     ]
                 ]
 
         rows =
-            List.map2 (summaryRow categoryType) categories totalPrices
+            List.map3 (summaryRow categoryType) categories totalPrices percentages
 
         theTable =
             case List.length rows of
@@ -923,8 +938,8 @@ summaryTable categoryType transactions =
     div [ class "box" ] [ theTable ]
 
 
-summaryRow : CategoryType -> String -> Float -> Html Msg
-summaryRow categoryType category total =
+summaryRow : CategoryType -> String -> Float -> Float -> Html Msg
+summaryRow categoryType category total percent =
     let
         ( priceText, priceClass ) =
             case categoryType of
@@ -936,6 +951,7 @@ summaryRow categoryType category total =
     in
     tr []
         [ td [] [ text category ]
+        , td [] [ p [ align "right" ] [ text (percent |> Helper.toTwoDecimal) ] ]
         , td [] [ p [ class priceClass, align "right" ] [ text priceText ] ]
         ]
 
@@ -985,12 +1001,14 @@ summaryBoxByMonth currentTime transactions =
             thead []
                 [ tr []
                     [ th [] [ text "Month" ]
+                    , th [] [ p [ align "right" ] [ text "Expenses" ] ]
+                    , th [] [ p [ align "right" ] [ text "Earnings" ] ]
                     , th [] [ p [ align "right" ] [ text "Total" ] ]
                     ]
                 ]
 
         months =
-            transactions
+            currentYearTransactions
                 |> List.map .created
                 |> List.map (Date.fromTime >> Date.month)
                 |> List.map toString
@@ -1008,10 +1026,24 @@ summaryBoxByMonth currentTime transactions =
 
         totalPrices =
             months
-                |> List.map (calcTotalByMonth transactions)
+                |> List.map (calcTotalByMonth currentYearTransactions)
+
+        expenseTransactions =
+            List.filter (\t -> t.price < 0) currentYearTransactions
+
+        earningTransactions =
+            List.filter (\t -> t.price >= 0) currentYearTransactions
+
+        totalExpenses =
+            months
+                |> List.map (calcTotalByMonth expenseTransactions)
+
+        totalEarnings =
+            months
+                |> List.map (calcTotalByMonth earningTransactions)
 
         rows =
-            List.map2 summaryByMonthRow months totalPrices
+            List.map4 summaryByMonthRow months totalExpenses totalEarnings totalPrices
 
         theTable =
             case List.length rows of
@@ -1039,8 +1071,8 @@ summaryBoxByMonth currentTime transactions =
         ]
 
 
-summaryByMonthRow : Month -> Float -> Html Msg
-summaryByMonthRow month totalPrice =
+summaryByMonthRow : Month -> Float -> Float -> Float -> Html Msg
+summaryByMonthRow month expenses earnings totalPrice =
     let
         ( priceText, priceClass ) =
             if totalPrice < 0 then
@@ -1050,6 +1082,8 @@ summaryByMonthRow month totalPrice =
     in
     tr []
         [ td [] [ text (toString month) ]
+        , td [] [ p [ class "tr-expense", align "right" ] [ text (-expenses |> Helper.toTwoDecimal) ] ]
+        , td [] [ p [ class "tr-earning", align "right" ] [ text (earnings |> Helper.toTwoDecimal) ] ]
         , td [] [ p [ class priceClass, align "right" ] [ text priceText ] ]
         ]
 
@@ -1428,7 +1462,7 @@ transactionsTable model =
                                 [ input
                                     [ class "input"
                                     , type_ "text"
-                                    , placeholder "filter displayed transactions"
+                                    , placeholder "filter transactions"
                                     , onInput InputQuery
                                     , onTab (FocusOn "tr-input-price")
                                     ]
