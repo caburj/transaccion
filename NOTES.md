@@ -1,3 +1,7 @@
+# NOTES
+
+Todos and stuff
+
 ## Vocabularies
 
 1. expense - expenditure, loss
@@ -5,8 +9,9 @@
 
 ## Currently working
 
-- add percentage in the summary
+- summary by month
 - components in the pie chart can be chosen
+- add percentage in the summary
 - summary as part of model
 - summary of ALL transactions by month
   - month | total expense | total earning | balance

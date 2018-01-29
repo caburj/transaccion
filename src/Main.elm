@@ -1359,7 +1359,7 @@ transactionsTable model =
                 [] ->
                     div [ class "content" ]
                         [ p []
-                            [ text "(Empty table. Just like your family table during Christmas and New Year's Eve. JK ^^, )" ]
+                            [ text "Nothing. Enter different search strings." ]
                         ]
 
                 _ ->
@@ -1369,8 +1369,28 @@ transactionsTable model =
                                 |> List.map listTransaction
                             )
                         ]
+
+        totalPrice =
+            transactions
+                |> List.map .price
+                |> List.sum
+
+        ( totalPriceClass, totalPriceText ) =
+            if totalPrice < 0 then
+                ( "tr-expense", -totalPrice |> Helper.toTwoDecimal )
+            else
+                ( "tr-earning", totalPrice |> Helper.toTwoDecimal )
     in
-    div [ class "box" ] [ transactionTableTemplate content ]
+    div [ class "box" ]
+        [ transactionTableTemplate content
+        , hr [] []
+        , div []
+            [ p [ style [ ( "text-align", "right" ) ] ]
+                [ text "Total | "
+                , span [ class totalPriceClass ] [ text totalPriceText ]
+                ]
+            ]
+        ]
 
 
 listTransaction : Transaction -> Html Msg
