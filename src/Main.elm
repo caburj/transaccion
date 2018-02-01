@@ -476,8 +476,23 @@ update msg model =
             let
                 month =
                     Helper.monthFromString monthString
+
+                displayType =
+                    case model.currentDisplay of
+                        All ->
+                            All
+
+                        ByYear year ->
+                            ByYear year
+
+                        ByMonth _ year ->
+                            ByMonth month year
             in
-            { model | selectedMonth = month } ! []
+            update (ChangeTransactionsDisplay displayType)
+                { model
+                    | selectedMonth = month
+                    , currentDisplay = displayType
+                }
 
         SelectYear yearString ->
             let
@@ -488,8 +503,23 @@ update msg model =
 
                         Err _ ->
                             -999
+
+                displayType =
+                    case model.currentDisplay of
+                        All ->
+                            All
+
+                        ByYear _ ->
+                            ByYear year
+
+                        ByMonth month year ->
+                            ByMonth month year
             in
-            { model | selectedYear = year } ! []
+            update (ChangeTransactionsDisplay displayType)
+                { model
+                    | selectedYear = year
+                    , currentDisplay = displayType
+                }
 
         InputQuery inputQuery ->
             { model | query = inputQuery } ! []
